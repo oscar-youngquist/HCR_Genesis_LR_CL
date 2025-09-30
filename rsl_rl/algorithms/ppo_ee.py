@@ -36,7 +36,7 @@ from rsl_rl.modules import ActorCriticEE
 from rsl_rl.storage import RolloutStorageEE
 
 '''
-PPO with explicit estimator
+PPO with explicit estimator, refer to https://arxiv.org/abs/2202.05481
 '''
 
 

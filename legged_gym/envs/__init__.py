@@ -42,6 +42,9 @@ from legged_gym.envs.go2.go2_ts.go2_ts_config import Go2TSCfg, Go2TSCfgPPO
 # go2_ee(explicit estimator)
 from legged_gym.envs.go2.go2_ee.go2_ee import Go2EE
 from legged_gym.envs.go2.go2_ee.go2_ee_config import Go2EECfg, Go2EECfgPPO
+# go2_cts(concurrent teacher-student)
+from legged_gym.envs.go2.go2_cts.go2_cts import Go2CTS
+from legged_gym.envs.go2.go2_cts.go2_cts_config import Go2CTSCfg, Go2CTSCfgPPO
 # bipedal_walker
 # from legged_gym.envs.bipedal_walker.bipedal_walker_config import BipedalWalkerCfg, BipedalWalkerCfgPPO
 # from legged_gym.envs.bipedal_walker.bipedal_walker import BipedalWalker
@@ -56,5 +59,6 @@ task_registry.register( "go2", GO2, GO2Cfg(), GO2CfgPPO())
 task_registry.register( "go2_wtw", GO2WTW, GO2WTWCfg(), GO2WTWCfgPPO())
 task_registry.register( "go2_ts", Go2TS, Go2TSCfg(), Go2TSCfgPPO())
 task_registry.register( "go2_ee", Go2EE, Go2EECfg(), Go2EECfgPPO())
+task_registry.register( "go2_cts", Go2CTS, Go2CTSCfg(), Go2CTSCfgPPO())
 # task_registry.register( "go2_sysid", GO2SysID, GO2SysIDCfg(), GO2CfgPPO())
 # task_registry.register( "bipedal_walker", BipedalWalker, BipedalWalkerCfg(), BipedalWalkerCfgPPO())
