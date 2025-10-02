@@ -72,7 +72,7 @@ class Go2CTS(LeggedRobot):
         # Critic observation
         critic_obs = torch.cat((
             self.obs_buf,                 # num_observations
-            domain_randomization_info,    # 34
+            domain_randomization_info,    # 31
         ), dim=-1)
         if self.cfg.asset.obtain_link_contact_states:
             critic_obs = torch.cat(
@@ -212,6 +212,20 @@ class Go2CTS(LeggedRobot):
             self.obs_history_deque[i][env_ids] *= 0
         for i in range(self.critic_obs_deque.maxlen):
             self.critic_obs_deque[i][env_ids] *= 0
+    
+    def update_command_curriculum(self, env_ids):
+        """ Implements a curriculum of increasing commands
+
+        Args:
+            env_ids (List[int]): ids of environments being reset
+        """
+        # If the tracking reward is above 80% of the maximum, increase the range of commands
+        if torch.mean(self.episode_sums["tracking_lin_vel"][self.num_teacher:]) / self.max_episode_length > \
+                self.cfg.commands.curriculum_threshold * self.reward_scales["tracking_lin_vel"]:
+            self.command_ranges["lin_vel_x"][0] = np.clip(
+                self.command_ranges["lin_vel_x"][0] - 0.5, -self.cfg.commands.max_curriculum, 0.)
+            self.command_ranges["lin_vel_x"][1] = np.clip(
+                self.command_ranges["lin_vel_x"][1] + 0.5, 0., self.cfg.commands.max_curriculum)
     
     def _reset_dofs(self, env_ids):
         """ Resets DOF position and velocities of selected environmments

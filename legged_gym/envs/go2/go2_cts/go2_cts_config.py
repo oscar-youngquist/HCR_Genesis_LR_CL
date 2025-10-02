@@ -142,8 +142,8 @@ class Go2CTSCfg( LeggedRobotCfg ):
         randomize_com_displacement = True
         com_displacement_range = [-0.03, 0.03]
         randomize_pd_gain = True
-        kp_range = [0.8, 1.2]
-        kd_range = [0.8, 1.2]
+        kp_range = [0.9, 1.1]
+        kd_range = [0.9, 1.1]
         randomize_joint_armature = True
         joint_armature_range = [0.015, 0.025]  # [N*m*s/rad]
         randomize_joint_stiffness = True
