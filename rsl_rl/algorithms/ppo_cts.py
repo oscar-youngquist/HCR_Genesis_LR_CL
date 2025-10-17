@@ -34,6 +34,7 @@ import torch.optim as optim
 
 from rsl_rl.modules import ActorCriticCTS
 from rsl_rl.storage import RolloutStorageCTS
+import itertools
 
 '''
 PPO with concurrent teacher-student architecture, refer to https://clearlab-sustech.github.io/concurrentTS/
@@ -61,6 +62,8 @@ class PPO_CTS:
                  encoder_lr=1e-3,      # learning rate for history encoder
                  num_encoder_epochs=1, # number of epochs for history encoder via supervised learning
                  num_teacher=1,
+                 student_weight=1.0,
+                 student_ascend_rate=0.1, # per 100 ite
                  ):
 
         self.device = device
@@ -70,15 +73,23 @@ class PPO_CTS:
         self.learning_rate = learning_rate
         self.encoder_lr = encoder_lr
         self.num_teacher = num_teacher
+        self.max_student_weight = student_weight
+        self.student_ascend_rate = student_ascend_rate
 
         # PPO components
         self.actor_critic = actor_critic
         self.actor_critic.to(self.device)
         self.storage = None  # initialized later
-        self.optimizer = optim.Adam(
-            self.actor_critic.parameters(), lr=learning_rate) # for teacher(privileged) encoder PPO update
+        modules = [self.actor_critic.actor,
+                   self.actor_critic.privilege_encoder,
+                   self.actor_critic.critic]
+        params = itertools.chain(*(m.parameters() for m in modules), [self.actor_critic.std])
+        self.optimizer = optim.Adam(params, lr=learning_rate)  # do not consider paramters of student encoder during RL update
+        # self.optimizer = optim.Adam(
+        #     self.actor_critic.parameters(), lr=learning_rate
+        # )
         self.history_encoder_optimizer = optim.Adam(
-            self.actor_critic.parameters(), lr=encoder_lr)    # for history encoder supervised learning update
+            self.actor_critic.history_encoder.parameters(), lr=encoder_lr)    # for history encoder supervised learning update
         self.transition = RolloutStorageCTS.Transition()
 
         # PPO parameters
@@ -162,9 +173,9 @@ class PPO_CTS:
             generator = self.storage.mini_batch_generator(
                 self.num_mini_batches, self.num_learning_epochs)
         for teacher_obs_batch, teacher_privileged_obs_batch, teacher_actions_batch, \
-            teacher_old_actions_log_prob_batch, teacher_advantages_batch, \
+            teacher_old_actions_log_prob_batch, teacher_advantages_batch, teacher_old_mu_batch, teacher_old_sigma_batch, \
             student_obs_batch, student_privileged_obs_batch, student_obs_histories_batch, student_actions_batch, \
-            student_old_actions_log_prob_batch, student_advantages_batch, student_old_mu_batch, student_old_sigma_batch, \
+            student_old_actions_log_prob_batch, student_advantages_batch, \
             critic_obs_batch, target_values_batch, returns_batch, hid_states_batch, masks_batch in generator:
 
             # Teacher update
@@ -173,6 +184,27 @@ class PPO_CTS:
             teacher_actions_log_prob_batch = self.actor_critic.get_actions_log_prob(
                 teacher_actions_batch)
             teacher_entropy_batch = self.actor_critic.entropy
+            teacher_mu_batch = self.actor_critic.action_mean
+            teacher_sigma_batch = self.actor_critic.action_std
+            
+            ## Teacher KL, adapt learning rate
+            if self.desired_kl != None and self.schedule == 'adaptive':
+                with torch.inference_mode():
+                    kl = torch.sum(
+                        torch.log(teacher_sigma_batch / teacher_old_sigma_batch + 1.e-5) +
+                        (torch.square(teacher_old_sigma_batch) + torch.square(teacher_old_mu_batch - teacher_mu_batch)) /
+                        (2.0 * torch.square(teacher_sigma_batch)) - 0.5, axis=-1)
+                    kl_mean = torch.mean(kl)
+
+                    if kl_mean > self.desired_kl * 2.0:
+                        self.learning_rate = max(
+                            1e-5, self.learning_rate / 1.5)
+                    elif kl_mean < self.desired_kl / 2.0 and kl_mean > 0.0:
+                        self.learning_rate = min(
+                            1e-2, self.learning_rate * 1.5)
+
+                    for param_group in self.optimizer.param_groups:
+                        param_group['lr'] = self.learning_rate
 
             ## Surrogate loss
             ratio = torch.exp(teacher_actions_log_prob_batch -
@@ -187,28 +219,7 @@ class PPO_CTS:
                 student_obs_batch, student_obs_histories_batch, None, act_type='student', masks=masks_batch, hidden_states=hid_states_batch[0])
             student_actions_log_prob_batch = self.actor_critic.get_actions_log_prob(
                 student_actions_batch)
-            student_mu_batch = self.actor_critic.action_mean
-            student_sigma_batch = self.actor_critic.action_std
             student_entropy_batch = self.actor_critic.entropy
-            
-            ## Student KL, adapt learning rate
-            if self.desired_kl != None and self.schedule == 'adaptive':
-                with torch.inference_mode():
-                    kl = torch.sum(
-                        torch.log(student_sigma_batch / student_old_sigma_batch + 1.e-5) + 
-                        (torch.square(student_old_sigma_batch) + torch.square(student_old_mu_batch - student_mu_batch)) / 
-                        (2.0 * torch.square(student_sigma_batch)) - 0.5, axis=-1)
-                    kl_mean = torch.mean(kl)
-
-                    if kl_mean > self.desired_kl * 2.0:
-                        self.learning_rate = max(
-                            1e-5, self.learning_rate / 1.5)
-                    elif kl_mean < self.desired_kl / 2.0 and kl_mean > 0.0:
-                        self.learning_rate = min(
-                            1e-2, self.learning_rate * 1.5)
-
-                    for param_group in self.optimizer.param_groups:
-                        param_group['lr'] = self.learning_rate
             
             ## Surrogate loss
             ratio = torch.exp(student_actions_log_prob_batch -
@@ -232,11 +243,11 @@ class PPO_CTS:
             else:
                 value_loss = (returns_batch - value_batch).pow(2).mean()
 
-            # total_entropy_batch = torch.cat((teacher_entropy_batch, student_entropy_batch), dim=0)
+            total_entropy_batch = torch.cat((teacher_entropy_batch, student_entropy_batch), dim=0)
             
             loss = self.value_loss_coef * value_loss + \
                 teacher_surrogate_loss + student_surrogate_loss \
-                    - self.entropy_coef * (teacher_entropy_batch.mean() + student_entropy_batch.mean())
+                    - self.entropy_coef * (total_entropy_batch.mean())
 
             # Gradient step
             self.optimizer.zero_grad()

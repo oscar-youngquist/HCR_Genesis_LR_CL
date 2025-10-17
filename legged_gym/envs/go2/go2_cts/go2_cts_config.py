@@ -2,11 +2,11 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 class Go2CTSCfg( LeggedRobotCfg ):
     class env( LeggedRobotCfg.env ):
-        num_envs = 4096
-        num_teacher = num_envs // 4 *3 # a quarter of the total environments are student envs, the rest are teacher envs
+        num_envs = 8192
+        num_teacher = num_envs // 4 * 3 # a quarter of the total environments are student envs, the rest are teacher envs
         num_observations = 45  # num_obs
         num_privileged_obs = 94
-        frame_stack = 4    # number of frames to stack for obs_history
+        frame_stack = 20    # number of frames to stack for obs_history
         num_history_obs = int(num_observations * frame_stack)
         num_latent_dims = num_privileged_obs
         c_frame_stack = 5
@@ -160,13 +160,13 @@ class Go2CTSCfgPPO( LeggedRobotCfgPPO ):
         history_encoder_hidden_dims = [256, 128]
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         encoder_lr = 1e-3
-        num_encoder_epochs = 5
+        num_encoder_epochs = 3
     class runner( LeggedRobotCfgPPO.runner ):
         policy_class_name = "ActorCriticCTS"
         algorithm_class_name = "PPO_CTS"
         run_name = 'gs_cts'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = "Sep28_22-55-11_gs"
+        load_run = "Oct17_11-08-37_gs_cts"
         checkpoint = -1
-        max_iterations = 2500
+        max_iterations = 4000

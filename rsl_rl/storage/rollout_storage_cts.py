@@ -78,7 +78,8 @@ class RolloutStorageCTS:
         self.actions_log_prob = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
         self.values = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
         self.returns = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
-        self.advantages = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
+        self.teacher_advantages = torch.zeros(num_transitions_per_env, num_teacher, 1, device=self.device)
+        self.student_advantages = torch.zeros(num_transitions_per_env, num_envs - num_teacher, 1, device=self.device)
         self.mu = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
         self.sigma = torch.zeros(num_transitions_per_env, num_envs, *actions_shape, device=self.device)
 
@@ -129,20 +130,39 @@ class RolloutStorageCTS:
         self.step = 0
 
     def compute_returns(self, last_values, gamma, lam):
+        # compute teacher advantages and returns, using indices from [0, num_teacher]
         advantage = 0
         for step in reversed(range(self.num_transitions_per_env)):
             if step == self.num_transitions_per_env - 1:
-                next_values = last_values
+                next_values = last_values[0:self.num_teacher]
             else:
-                next_values = self.values[step + 1]
-            next_is_not_terminal = 1.0 - self.dones[step].float()
-            delta = self.rewards[step] + next_is_not_terminal * gamma * next_values - self.values[step]
+                next_values = self.values[step + 1, 0:self.num_teacher]
+            next_is_not_terminal = 1.0 - self.dones[step, 0:self.num_teacher].float()
+            delta = self.rewards[step, 0:self.num_teacher] + next_is_not_terminal * \
+                gamma * next_values - self.values[step, 0:self.num_teacher]
             advantage = delta + next_is_not_terminal * gamma * lam * advantage
-            self.returns[step] = advantage + self.values[step]
+            self.returns[step, 0:self.num_teacher] = advantage + self.values[step, 0:self.num_teacher]
 
-        # Compute and normalize the advantages
-        self.advantages = self.returns - self.values
-        self.advantages = (self.advantages - self.advantages.mean()) / (self.advantages.std() + 1e-8)
+        ## compute and normalize the advantages
+        self.teacher_advantages = self.returns[:, 0:self.num_teacher] - self.values[:, 0:self.num_teacher]
+        self.teacher_advantages = (self.teacher_advantages - self.teacher_advantages.mean()) / (self.teacher_advantages.std() + 1e-8)
+        
+        # compute student advantages and returns, using indices from [num_teacher, num_envs]
+        advantage = 0
+        for step in reversed(range(self.num_transitions_per_env)):
+            if step == self.num_transitions_per_env - 1:
+                next_values = last_values[self.num_teacher:]
+            else:
+                next_values = self.values[step + 1, self.num_teacher:]
+            next_is_not_terminal = 1.0 - self.dones[step, self.num_teacher:].float()
+            delta = self.rewards[step, self.num_teacher:] + next_is_not_terminal * \
+                gamma * next_values - self.values[step, self.num_teacher:]
+            advantage = delta + next_is_not_terminal * gamma * lam * advantage
+            self.returns[step, self.num_teacher:] = advantage + self.values[step, self.num_teacher:]
+        
+        ## compute and normalize the advantages
+        self.student_advantages = self.returns[:, self.num_teacher:] - self.values[:, self.num_teacher:]
+        self.student_advantages = (self.student_advantages - self.student_advantages.mean()) / (self.student_advantages.std() + 1e-8)
 
     def get_statistics(self):
         done = self.dones
@@ -167,16 +187,16 @@ class RolloutStorageCTS:
         # teacher_obs_histories = self.observation_histories[:, self.teacher_env_ids].flatten(0, 1)
         teacher_actions = self.actions[:, 0:self.num_teacher].flatten(0, 1)
         teacher_old_actions_log_prob = self.actions_log_prob[:, 0:self.num_teacher].flatten(0, 1)
-        teacher_advantages = self.advantages[:, 0:self.num_teacher].flatten(0, 1)
+        teacher_advantages = self.teacher_advantages.flatten(0, 1)
+        teacher_old_mu = self.mu[:, 0:self.num_teacher].flatten(0, 1)
+        teacher_old_sigma = self.sigma[:, 0:self.num_teacher].flatten(0, 1)
 
         student_observations = self.observations[:, self.num_teacher:].flatten(0, 1)
         student_privileged_observations = self.privileged_observations[:, self.num_teacher:].flatten(0, 1)
         student_obs_histories = self.observation_histories[:, self.num_teacher:].flatten(0, 1)
         student_actions = self.actions[:, self.num_teacher:].flatten(0, 1)
         student_old_actions_log_prob = self.actions_log_prob[:, self.num_teacher:].flatten(0, 1)
-        student_advantages = self.advantages[:, self.num_teacher:].flatten(0, 1)
-        student_old_mu = self.mu[:, self.num_teacher:].flatten(0, 1)
-        student_old_sigma = self.sigma[:, self.num_teacher:].flatten(0, 1)
+        student_advantages = self.student_advantages.flatten(0, 1)
         # Values do not need to split
         critic_observations = self.critic_observations.flatten(0, 1)
         values = self.values.flatten(0, 1)
@@ -201,6 +221,8 @@ class RolloutStorageCTS:
                 teacher_actions_batch = teacher_actions[teacher_batch_idx]
                 teacher_old_actions_log_prob_batch = teacher_old_actions_log_prob[teacher_batch_idx]
                 teacher_advantages_batch = teacher_advantages[teacher_batch_idx]
+                teacher_old_mu_batch = teacher_old_mu[teacher_batch_idx]
+                teacher_old_sigma_batch = teacher_old_sigma[teacher_batch_idx]
                 
                 student_obs_batch = student_observations[student_batch_idx]
                 student_privileged_obs_batch = student_privileged_observations[student_batch_idx]
@@ -208,17 +230,15 @@ class RolloutStorageCTS:
                 student_actions_batch = student_actions[student_batch_idx]
                 student_old_actions_log_prob_batch = student_old_actions_log_prob[student_batch_idx]
                 student_advantages_batch = student_advantages[student_batch_idx]
-                student_old_mu_batch = student_old_mu[student_batch_idx]
-                student_old_sigma_batch = student_old_sigma[student_batch_idx]
                 
                 critic_obs_batch = critic_observations[total_batch_idx]
                 values_batch = values[total_batch_idx]
                 returns_batch = returns[total_batch_idx]
 
                 yield teacher_obs_batch, teacher_privileged_obs_batch, teacher_actions_batch, \
-                    teacher_old_actions_log_prob_batch, teacher_advantages_batch, \
+                    teacher_old_actions_log_prob_batch, teacher_advantages_batch, teacher_old_mu_batch, teacher_old_sigma_batch, \
                     student_obs_batch, student_privileged_obs_batch, student_obs_histories_batch, student_actions_batch, \
-                    student_old_actions_log_prob_batch, student_advantages_batch, student_old_mu_batch, student_old_sigma_batch, \
+                    student_old_actions_log_prob_batch, student_advantages_batch, \
                     critic_obs_batch, values_batch, returns_batch, \
                         (None, None), None
 
