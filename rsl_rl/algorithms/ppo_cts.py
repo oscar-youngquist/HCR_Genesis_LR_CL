@@ -83,11 +83,8 @@ class PPO_CTS:
         modules = [self.actor_critic.actor,
                    self.actor_critic.privilege_encoder,
                    self.actor_critic.critic]
-        params = itertools.chain(*(m.parameters() for m in modules), [self.actor_critic.std])
-        self.optimizer = optim.Adam(params, lr=learning_rate)  # do not consider paramters of student encoder during RL update
-        # self.optimizer = optim.Adam(
-        #     self.actor_critic.parameters(), lr=learning_rate
-        # )
+        self.params = itertools.chain(*(m.parameters() for m in modules), [self.actor_critic.std])
+        self.optimizer = optim.Adam(self.params, lr=learning_rate)  # do not consider paramters of student encoder during RL update
         self.history_encoder_optimizer = optim.Adam(
             self.actor_critic.history_encoder.parameters(), lr=encoder_lr)    # for history encoder supervised learning update
         self.transition = RolloutStorageCTS.Transition()
@@ -253,8 +250,20 @@ class PPO_CTS:
             self.optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(
-                self.actor_critic.parameters(), self.max_grad_norm)
+                self.params, self.max_grad_norm)
             self.optimizer.step()
+        
+        if self.actor_critic.is_recurrent:
+            generator = self.storage.recurrent_mini_batch_generator(
+                self.num_mini_batches, self.num_learning_epochs)
+        else:
+            generator = self.storage.mini_batch_generator(
+                self.num_mini_batches, self.num_learning_epochs)
+        for teacher_obs_batch, teacher_privileged_obs_batch, teacher_actions_batch, \
+            teacher_old_actions_log_prob_batch, teacher_advantages_batch, teacher_old_mu_batch, teacher_old_sigma_batch, \
+            student_obs_batch, student_privileged_obs_batch, student_obs_histories_batch, student_actions_batch, \
+            student_old_actions_log_prob_batch, student_advantages_batch, \
+            critic_obs_batch, target_values_batch, returns_batch, hid_states_batch, masks_batch in generator:
             
             # Reconstruction gradient step
             for _ in range(self.num_encoder_epochs):
@@ -267,13 +276,16 @@ class PPO_CTS:
                     encoder_predictions, encoder_targets)
                 self.history_encoder_optimizer.zero_grad()
                 reconstruction_loss.backward()
+                nn.utils.clip_grad_norm_(
+                    self.actor_critic.history_encoder.parameters(), self.max_grad_norm)
                 self.history_encoder_optimizer.step()
+            
+                mean_reconstruction_loss += reconstruction_loss.item()
                 
             mean_value_loss += value_loss.item()
             mean_teacher_surrogate_loss += teacher_surrogate_loss.item()
             mean_student_surrogate_loss += student_surrogate_loss.item()
-            mean_reconstruction_loss += reconstruction_loss.item()
-
+        
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
         mean_teacher_surrogate_loss /= num_updates

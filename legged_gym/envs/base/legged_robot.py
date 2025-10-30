@@ -516,7 +516,7 @@ class LeggedRobot(BaseTask):
 
     def _reward_stand_still(self):
         # Penalize motion at zero commands
-        return torch.sum(torch.abs(self.simulator.dof_pos - self.simulator.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.simulator.dof_pos - self.simulator.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
 
     def _reward_dof_close_to_default(self):
         # Penalize dof position deviation from default

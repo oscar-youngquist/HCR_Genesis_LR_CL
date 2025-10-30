@@ -1,8 +1,9 @@
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from legged_gym import *
 
 class Go2CTSCfg( LeggedRobotCfg ):
     class env( LeggedRobotCfg.env ):
-        num_envs = 8192
+        num_envs = 4096
         num_teacher = num_envs // 4 * 3 # a quarter of the total environments are student envs, the rest are teacher envs
         num_observations = 45  # num_obs
         num_privileged_obs = 94
@@ -20,8 +21,10 @@ class Go2CTSCfg( LeggedRobotCfg ):
         env_spacing = 0.5
     
     class terrain( LeggedRobotCfg.terrain ):
-        mesh_type = "heightfield" # for genesis
-        # mesh_type = "trimesh"  # for isaacgym
+        if SIMULATOR == "genesis":
+            mesh_type = "heightfield"
+        else:
+            mesh_type = "trimesh"
         restitution = 0.
         border_size = 10.0 # [m]
         curriculum = True
@@ -35,7 +38,7 @@ class Go2CTSCfg( LeggedRobotCfg ):
         num_rows = 10  # number of terrain rows (levels)
         num_cols = 10  # number of terrain cols (types)
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
-        terrain_proportions = [0.2, 0.1, 0.25, 0.25, 0.2]
+        terrain_proportions = [0.2, 0.1, 0.2, 0.2, 0.2, 0.0, 0.0, 0.1]
         
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]
@@ -113,7 +116,7 @@ class Go2CTSCfg( LeggedRobotCfg ):
             dof_acc = -2.e-7
             action_rate = -0.01
             action_smoothness = -0.01
-            torques = -2.e-4
+            torques = -2.e-5
             # gait
             feet_air_time = 1.0
             foot_clearance = 0.2
@@ -159,8 +162,8 @@ class Go2CTSCfgPPO( LeggedRobotCfgPPO ):
         privilege_encoder_hidden_dims = [256, 128]
         history_encoder_hidden_dims = [256, 128]
     class algorithm( LeggedRobotCfgPPO.algorithm ):
-        encoder_lr = 1e-3
-        num_encoder_epochs = 3
+        encoder_lr = 5.e-4
+        num_encoder_epochs = 1
     class runner( LeggedRobotCfgPPO.runner ):
         policy_class_name = "ActorCriticCTS"
         algorithm_class_name = "PPO_CTS"
