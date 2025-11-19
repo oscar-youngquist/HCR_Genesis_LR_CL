@@ -18,6 +18,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         num_actions = 12
         env_spacing = 0.5
+        use_warp = True
     
     class terrain( LeggedRobotCfg.terrain ):
         if SIMULATOR == "genesis":
@@ -152,6 +153,20 @@ class Go2TSCfg( LeggedRobotCfg ):
         joint_stiffness_range = [0.01, 0.02]
         randomize_joint_damping = True
         joint_damping_range = [0.25, 0.3]
+    
+    class sensor( LeggedRobotCfg.sensor ):
+        add_depth = True
+        class depth_camera_config( LeggedRobotCfg.sensor.depth_camera_config ):
+            near_clip = 0.175
+            far_clip = 2.0
+            near_plane = 0.1
+            far_plane = 10.0
+            resolution = (160, 120)
+            horizontal_fov_deg = 75
+            pos = (0.33, 0.0, 0.1)
+            euler = (1.27, 0.0, -1.57) # 0.3 rad down, adjust roll for up and down
+                                       # rad, default axes of camera: x forward, y right, z up, ray is casted towards z negative
+                                       # in rotation, z(yaw) will take effect first
 
 class Go2TSCfgPPO( LeggedRobotCfgPPO ):
     seed = 1
@@ -175,6 +190,6 @@ class Go2TSCfgPPO( LeggedRobotCfgPPO ):
         run_name = 'ts_with_lin_vel'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = "Oct31_17-42-50_gs_ts_blind"
+        load_run = "Nov19_20-45-02_ts_with_lin_vel"
         checkpoint = -1
         max_iterations = 2500

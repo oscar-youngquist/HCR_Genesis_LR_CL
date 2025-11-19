@@ -11,6 +11,7 @@ class LeggedRobotCfg(BaseConfig):
         debug = False # if debugging, visualize contacts, etc.
         env_spacing = 1.0
         fail_to_terminal_time_s = 0.5 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
+        use_warp = False               # whether to use warp for sensors(lidar, camera, etc.)
 
     class terrain:
         mesh_type = 'plane' # "heightfield" # none, plane, heightfield
@@ -35,6 +36,7 @@ class LeggedRobotCfg(BaseConfig):
         platform_size = 3.0
         num_rows = 4  # number of terrain rows (levels)
         num_cols = 4  # number of terrain cols (types)
+        num_subterrains = num_rows * num_cols
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
         # trimesh only:
@@ -195,16 +197,23 @@ class LeggedRobotCfg(BaseConfig):
     
     class sensor:
         add_depth = False
+        num_sensors = 1
         class depth_camera_config:
+            num_history = 1   # history frames for depth images
             near_clip = 0.1
             far_clip = 10.0
             near_plane = 0.1
             far_plane = 10.0
             resolution = (80, 60)
-            fov_horizontal = 75
+            horizontal_fov_deg = 75
             pos = (0.3, 0.0, 0.1)
             euler = (0.0, 0.0, 0.0)
             decimation = 5
+            # Warp only
+            calculate_depth = True
+            segmentation_camera = False
+            return_pointcloud = False
+            pointcloud_in_world_frame = False
 
     class sim:
         # Common
