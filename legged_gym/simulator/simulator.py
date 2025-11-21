@@ -1049,7 +1049,8 @@ class IsaacGymSimulator(Simulator):
             print("vertex_tensor is None")
         vertex_vec3_array = wp.from_torch(vertex_tensor,dtype=wp.vec3)        
         faces_wp_int32_array = wp.from_numpy(triangles.flatten(), dtype=wp.int32,device=self.device)
-                
+        
+        # mesh coordinate convention may be the same as isaacgym
         self.wp_meshes =  wp.Mesh(points=vertex_vec3_array,indices=faces_wp_int32_array)
         
         self.mesh_ids = self.mesh_ids_array = wp.array([self.wp_meshes.id], dtype=wp.uint64)

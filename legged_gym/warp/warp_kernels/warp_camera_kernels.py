@@ -186,32 +186,39 @@ class DepthCameraWarpKernels:
     ):
 
         env_id, cam_id, x, y = wp.tid()
-        mesh = mesh_ids[env_id]
+        mesh = mesh_ids[0]
+        # camera pos in the world frame
         cam_pos = cam_poss[env_id, cam_id]
+        # camera rotation relative to the world frame
         cam_quat = cam_quats[env_id, cam_id]
+        # coordinate in pixel frame
         cam_coords = wp.vec3(
             float(x), float(y), 1.0
         )  # this only converts the frame from warp's z-axis front to Isaac Gym's x-axis front
+        # principal point coordinate in pixel frame
         cam_coords_principal = wp.vec3(
             float(c_x), float(c_y), 1.0
-        )  # get the vector of principal axis
-        # transform to uv [-1,1]
+        )
+        # target point coordinate in camera frame
         uv = wp.transform_vector(K_inv, cam_coords)
-        uv_principal = wp.transform_vector(K_inv, cam_coords_principal)  # uv for principal axis
+        # principal axis direction in camera frame
+        uv_principal = wp.transform_vector(K_inv, cam_coords_principal)
         # compute camera ray
         # cam origin in world space
         ro = cam_pos
-        # tf the direction from camera to world space and normalize
+        # tf the direction from camera to world space and normalize, indicating the ray direction
         rd = wp.normalize(wp.quat_rotate(cam_quat, uv))
+        # ray direction of principal axis
         rd_principal = wp.normalize(
             wp.quat_rotate(cam_quat, uv_principal)
-        )  # ray direction of principal axis
-        t = float(0.0)
-        u = float(0.0)
-        v = float(0.0)
-        sign = float(0.0)
-        n = wp.vec3()
-        f = int(0)
+        )
+        # wp.printf("ray_direction_principal: %f, %f, %f\n", rd_principal.x, rd_principal.y, rd_principal.z)
+        t = float(0.0) # hit distance along ray
+        u = float(0.0) # hit face barycentric u
+        v = float(0.0) # hit face barycentric v
+        sign = float(0.0) # hit face sign
+        n = wp.vec3() # hit face normal
+        f = int(0)    # hit face index
         multiplier = 1.0
         if calculate_depth:
             multiplier = wp.dot(

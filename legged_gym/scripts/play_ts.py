@@ -41,11 +41,12 @@ def play(args):
                                       "platform_size": 3.0}
     
     env_cfg.env.debug = True
+    env_cfg.asset.fix_base_link = False
     # velocity range
     env_cfg.commands.ranges.lin_vel_x = [0.5, 0.5]
     env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
     env_cfg.commands.ranges.ang_vel_yaw = [0., 0.]
-    env_cfg.commands.ranges.heading = [0.0, 0.0]
+    env_cfg.commands.ranges.heading = [1.57, 1.57]
 
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
@@ -70,6 +71,7 @@ def play(args):
 
     for i in range(10*int(env.max_episode_length)):
         actions = policy(obs_buf, obs_history)
+        # actions = torch.zeros_like(actions, device=actions.device)  # zero action for testing
         obs_buf, privileged_obs_buf, obs_history, critic_obs, rews, dones, infos = env.step(actions.detach())
         
         # print debug info

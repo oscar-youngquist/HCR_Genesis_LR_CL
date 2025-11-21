@@ -37,37 +37,36 @@ class WarpCam:
         # Calculate camera params
         W = self.width
         H = self.height
-        (u_0, v_0) = (W / 2, H / 2)
+        # principal point at the center of the image
+        (c_x, c_y) = (W / 2, H / 2)
+        # focal length in pixels, implicitly assuming dx(pixel length)=1
         f = W / 2 * 1 / math.tan(self.horizontal_fov / 2)
 
         vertical_fov = 2 * math.atan(H / (2 * f))
-        print(f"camera vertical fov (deg): {math.degrees(vertical_fov)}")
-        alpha_u = u_0 / math.tan(self.horizontal_fov / 2)
-        alpha_v = v_0 / math.tan(vertical_fov / 2)
+        # f_x equals to f because f is already in pixel unit
+        f_x = c_x / math.tan(self.horizontal_fov / 2)
+        # f_y equals to f, assuming square pixels
+        f_y = c_y / math.tan(vertical_fov / 2)
 
         # simple pinhole model
-        self.K = wp.mat44(
-            alpha_u,
-            0.0,
-            u_0,
-            0.0,
-            0.0,
-            alpha_v,
-            v_0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
+        # transformation matrix from camera frame to pixel frame, emitting ray toward +z direction
+        # self.K = wp.mat44( # row first
+        #     f_x, 0.0, c_x, 0.0,
+        #     0.0, f_y, c_y, 0.0,
+        #     0.0, 0.0, 1.0, 0.0,
+        #     0.0, 0.0, 0.0, 1.0,
+        # )
+        # rectify pixel frame
+        self.K = wp.mat44( # row first
+            0.0, -f_x, c_x, 0.0,
+            f_y, 0.0, c_y, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
         )
         self.K_inv = wp.inverse(self.K)
 
-        self.c_x = int(u_0)
-        self.c_y = int(v_0)
+        self.c_x = int(c_x)
+        self.c_y = int(c_y)
 
     def create_render_graph_pointcloud(self, debug=False):
         if not debug:

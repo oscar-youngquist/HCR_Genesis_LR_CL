@@ -164,9 +164,7 @@ class Go2TSCfg( LeggedRobotCfg ):
             resolution = (160, 120)
             horizontal_fov_deg = 75
             pos = (0.33, 0.0, 0.1)
-            euler = (1.27, 0.0, -1.57) # 0.3 rad down, adjust roll for up and down
-                                       # rad, default axes of camera: x forward, y right, z up, ray is casted towards z negative
-                                       # in rotation, z(yaw) will take effect first
+            euler = (0.0, 1.87, 0.0) # the default camera frame is the same as world frame(x-forward, y-left, z-up)
 
 class Go2TSCfgPPO( LeggedRobotCfgPPO ):
     seed = 1

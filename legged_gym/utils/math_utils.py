@@ -14,8 +14,8 @@ def quat_mul(a, b):
     a = a.reshape(-1, 4)
     b = b.reshape(-1, 4)
 
-    w1, x1, y1, z1 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
-    w2, x2, y2, z2 = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
+    x1, y1, z1, w1 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
+    x2, y2, z2, w2 = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
     ww = (z1 + x1) * (x2 + y2)
     yy = (w1 - y1) * (w2 + z2)
     zz = (w1 + y1) * (w2 - z2)
@@ -26,7 +26,7 @@ def quat_mul(a, b):
     y = qq - yy + (w1 - x1) * (y2 + z2)
     z = qq - zz + (z1 + y1) * (w2 - x2)
 
-    quat = torch.stack([w, x, y, z], dim=-1).view(shape)
+    quat = torch.stack([x, y, z, w], dim=-1).view(shape)
 
     return quat
 
