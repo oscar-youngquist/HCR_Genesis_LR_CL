@@ -572,12 +572,13 @@ class GenesisSimulator(Simulator):
             depth = self.depth_images
         else:
             depth = self.depth_images[0]
-        pixel_values = ((depth + 0.5) * 255.0).cpu().numpy().astype(np.uint8)
-        image = im.fromarray(pixel_values, mode='L')
-        image.save("debug_depth_images/depth_frame%d.jpg" % self.frame_count)
-        # cv.imshow("Depth Camera", (255 * normalized_depth.cpu().numpy()).astype(np.uint8))
-        # cv.waitKey(1)
-        self.frame_count += 1
+        if self.cfg.sensor.depth_camera_config.calculate_depth:
+            pixel_values = ((depth + 0.5) * 255.0).cpu().numpy().astype(np.uint8)
+            image = im.fromarray(pixel_values, mode='L')
+            image.save("debug_depth_images/depth_frame%d.jpg" % self.frame_count)
+            # cv.imshow("Depth Camera", (255 * normalized_depth.cpu().numpy()).astype(np.uint8))
+            # cv.waitKey(1)
+            self.frame_count += 1
     
     # ------------- Callbacks --------------
 
@@ -1057,11 +1058,20 @@ class IsaacGymSimulator(Simulator):
     
     def _create_warp_tensors(self):
         self.warp_tensor_dict={}
-        self.depth_image_tensor_warp = torch.zeros((self.num_envs, 
-                                                    self.cfg.sensor.num_sensors,
-                                                    self.cfg.sensor.depth_camera_config.resolution[1],  # height
-                                                    self.cfg.sensor.depth_camera_config.resolution[0]), # width
-                                                   dtype=torch.float32, device=self.device)
+        pointcloud_dims = 3 * (self.cfg.sensor.depth_camera_config.return_pointcloud == True)
+        if pointcloud_dims > 0:
+            self.depth_image_tensor_warp = torch.zeros((self.num_envs, 
+                                                        self.cfg.sensor.num_sensors,
+                                                        self.cfg.sensor.depth_camera_config.resolution[1],  # height
+                                                        self.cfg.sensor.depth_camera_config.resolution[0], # width
+                                                        pointcloud_dims),    # xyz
+                                                       dtype=torch.float32, device=self.device)
+        else:
+            self.depth_image_tensor_warp = torch.zeros((self.num_envs, 
+                                                        self.cfg.sensor.num_sensors,
+                                                        self.cfg.sensor.depth_camera_config.resolution[1],  # height
+                                                        self.cfg.sensor.depth_camera_config.resolution[0]), # width
+                                                    dtype=torch.float32, device=self.device)
         self.sensor_pos_tensor = torch.zeros_like(self.root_states[:, 0:3])
         self.sensor_quat_tensor = torch.zeros_like(self.root_states[:, 3:7])
         
@@ -1156,14 +1166,26 @@ class IsaacGymSimulator(Simulator):
         
         # depth images
         if self.cfg.sensor.add_depth:
-            self.depth_images = torch.zeros(
-                (self.num_envs, 
-                 self.cfg.sensor.depth_camera_config.num_history,
-                 self.cfg.sensor.depth_camera_config.resolution[1], 
-                 self.cfg.sensor.depth_camera_config.resolution[0]), 
-                device=self.device, 
-                dtype=torch.float
-            )
+            pointcloud_dims = 3 * (self.cfg.sensor.depth_camera_config.return_pointcloud == True)
+            if pointcloud_dims > 0:
+                self.depth_images = torch.zeros(
+                    (self.num_envs, 
+                     self.cfg.sensor.depth_camera_config.num_history,
+                     self.cfg.sensor.depth_camera_config.resolution[1], 
+                     self.cfg.sensor.depth_camera_config.resolution[0],
+                     pointcloud_dims), 
+                    device=self.device, 
+                    dtype=torch.float
+                )
+            else:
+                self.depth_images = torch.zeros(
+                    (self.num_envs, 
+                    self.cfg.sensor.depth_camera_config.num_history,
+                    self.cfg.sensor.depth_camera_config.resolution[1], 
+                    self.cfg.sensor.depth_camera_config.resolution[0]), 
+                    device=self.device, 
+                    dtype=torch.float
+                )
     
     def step(self, actions):
         """Simulator steps, receiving actions from the agent"""
@@ -1208,12 +1230,13 @@ class IsaacGymSimulator(Simulator):
         if self.cfg.env.use_warp:
             pixels = self.sensor.update()
             self.depth_images[:, 0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
-            near_clip = self.cfg.sensor.depth_camera_config.near_clip
-            far_clip = self.cfg.sensor.depth_camera_config.far_clip
-            # clip the depth images to be within near and far clip
-            self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
-            # normalize the depth images to be within 0-1
-            self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip) - 0.5
+            if self.cfg.sensor.depth_camera_config.calculate_depth:
+                near_clip = self.cfg.sensor.depth_camera_config.near_clip
+                far_clip = self.cfg.sensor.depth_camera_config.far_clip
+                # clip the depth images to be within near and far clip
+                self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
+                # normalize the depth images to be within 0-1
+                self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip) - 0.5
         else:
             raise NotImplementedError("Depth image update not implemented for non-warp simulator")
             
@@ -1365,12 +1388,33 @@ class IsaacGymSimulator(Simulator):
     def draw_debug_depth_images(self):
         depth = self.depth_images[0, 0, :, :]  # get depth image of first env, first step
         # print(f"depth values: {depth}")
-        pixel_values = ((depth + 0.5) * 255.0).cpu().numpy().astype(np.uint8)
-        # image = im.fromarray(pixel_values, mode='L')
-        # image.save("debug_depth_images/depth_frame%d.jpg" % self.frame_count)
-        cv.imshow("Depth Camera", pixel_values)
-        cv.waitKey(1)
-        # self.frame_count += 1
+        if self.cfg.sensor.depth_camera_config.calculate_depth:
+            far_clip = self.cfg.sensor.depth_camera_config.far_clip
+            near_clip = self.cfg.sensor.depth_camera_config.near_clip
+            pixel_values = ((depth + 0.5) * 255.0).cpu().numpy().astype(np.uint8)
+            # image = im.fromarray(pixel_values, mode='L')
+            # image.save("debug_depth_images/depth_frame%d.jpg" % self.frame_count)
+            cv.imshow("Depth Camera", pixel_values)
+            cv.waitKey(1)
+            pixel_values = (depth + 0.5) * (far_clip - near_clip) + near_clip
+            pixel_values = pixel_values.cpu().numpy().astype(np.float32)
+            print(f"depth pixel values: {pixel_values}")
+            # self.frame_count += 1
+        elif self.cfg.sensor.depth_camera_config.return_pointcloud:
+            pointcloud = self.depth_images[0, 0, :, :, :]  # get pointcloud of first env, first step
+            pointcloud_np = pointcloud.cpu().numpy().astype(np.float32)
+            self.gym.clear_lines(self.viewer)
+            self.gym.refresh_rigid_body_state_tensor(self.sim)
+            base_pos = (self.root_states[0, :3]).cpu().numpy()
+            for i in range(pointcloud_np.shape[0]):
+                for j in range(pointcloud_np.shape[1]):
+                    x = pointcloud_np[i, j, 0]
+                    y = pointcloud_np[i, j, 1]
+                    z = pointcloud_np[i, j, 2]
+                    sphere_geom = gymutil.WireframeSphereGeometry(0.01, 4, 4, None, color=(0, 1, 1))
+                    sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+                    gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[0], sphere_pose)
+            # print(f"pointcloud values: {pointcloud_np}")
     
     def push_robots(self):
         max_vel = self.cfg.domain_rand.max_push_vel_xy

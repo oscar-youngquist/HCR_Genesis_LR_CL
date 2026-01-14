@@ -24,7 +24,7 @@ class DepthCameraWarpKernels:
     ):
 
         env_id, cam_id, x, y = wp.tid()
-        mesh = mesh_ids[env_id]
+        mesh = mesh_ids[0]
         cam_pos = cam_poss[env_id, cam_id]
         cam_quat = cam_quats[env_id, cam_id]
         cam_coords = wp.vec3(
@@ -135,7 +135,7 @@ class DepthCameraWarpKernels:
     ):
 
         env_id, cam_id, x, y = wp.tid()
-        mesh = mesh_ids[env_id]
+        mesh = mesh_ids[0]
         cam_pos = cam_poss[env_id, cam_id]
         cam_quat = cam_quats[env_id, cam_id]
         cam_coords = wp.vec3(

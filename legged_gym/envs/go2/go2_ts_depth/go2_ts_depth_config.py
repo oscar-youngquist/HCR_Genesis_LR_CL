@@ -18,6 +18,7 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         num_actions = 12
         env_spacing = 0.5
+        use_warp = True               # whether to use warp for sensors(lidar, camera, etc.)
     
     class terrain( LeggedRobotCfg.terrain ):
         if SIMULATOR == "genesis":
@@ -158,14 +159,19 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
     class sensor( LeggedRobotCfg.sensor ):
         add_depth = True
         class depth_camera_config( LeggedRobotCfg.sensor.depth_camera_config ):
-            near_clip = 0.175
-            far_clip = 2.0
+            near_clip = 0.0
+            far_clip = 5.0
             near_plane = 0.1
             far_plane = 5.0
             resolution = (80, 60)
             fov_horizontal = 75
             pos = (0.3, 0.0, 0.1)
-            euler = (0.0, 0.0, 0.0)
+            euler = (0.0, 1.57, 0.0)
+            # Warp only
+            calculate_depth = False
+            segmentation_camera = False
+            return_pointcloud = True
+            pointcloud_in_world_frame = True
 
 class Go2TSDepthCfgPPO( LeggedRobotCfgPPO ):
     seed = 1
@@ -186,9 +192,9 @@ class Go2TSDepthCfgPPO( LeggedRobotCfgPPO ):
     class runner( LeggedRobotCfgPPO.runner ):
         policy_class_name = "ActorCriticTS"
         algorithm_class_name = "PPO_TS"
-        run_name = 'ts_with_lin_vel'
+        run_name = ''
         experiment_name = 'go2_depth'
         save_interval = 500
-        load_run = "Nov04_15-26-02_ts_with_lin_vel"
+        load_run = "Jan14_10-22-04_"
         checkpoint = -1
         max_iterations = 2500
