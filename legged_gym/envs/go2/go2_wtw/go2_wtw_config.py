@@ -1,8 +1,6 @@
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-
 class GO2WTWCfg(LeggedRobotCfg):
-
     class env(LeggedRobotCfg.env):
         num_envs = 4096
         num_actions = 12
@@ -165,11 +163,6 @@ class GO2WTWCfg(LeggedRobotCfg):
 
 class GO2WTWCfgPPO(LeggedRobotCfgPPO):
     seed = 1
-    runner_class_name = "OnPolicyRunner"
-
-    class algorithm(LeggedRobotCfgPPO.algorithm):
-        entropy_coef = 0.01
-
     class runner(LeggedRobotCfgPPO.runner):
         run_name = 'wtw_gym'
         experiment_name = 'go2'

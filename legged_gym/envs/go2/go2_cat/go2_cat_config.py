@@ -2,7 +2,8 @@ from legged_gym import *
 from legged_gym.envs.go2.go2_ts.go2_ts_config import Go2TSCfg, Go2TSCfgPPO
 
 class Go2CaTCfg( Go2TSCfg ):
-  
+    class env( Go2TSCfg.env ):
+        num_envs = 4096
     class rewards( Go2TSCfg.rewards ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.34
@@ -33,8 +34,13 @@ class Go2CaTCfg( Go2TSCfg ):
             action_rate = 100.0
             max_projected_gravity = -0.1
             min_base_height = 0.25
+    
+    class normalization( Go2TSCfg.normalization ):
+        clip_actions = 10.0
 
 class Go2CaTCfgPPO( Go2TSCfgPPO ):
+    class policy( Go2TSCfgPPO.policy ):
+        clip_actions = Go2CaTCfg.normalization.clip_actions
     class runner( Go2TSCfgPPO.runner ):
         run_name = 'gs_cat'
         load_run = "Oct23_15-51-52_gs_cat"

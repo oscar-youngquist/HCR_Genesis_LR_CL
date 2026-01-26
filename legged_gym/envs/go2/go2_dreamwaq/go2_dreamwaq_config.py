@@ -1,8 +1,8 @@
 from legged_gym import *
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from legged_gym.envs.base.legged_robot_dreamwaq_config import LeggedRobotDreamwaqCfg, LeggedRobotDreamwaqCfgPPO
 
-class Go2DreamWaQCfg( LeggedRobotCfg ):
-    class env( LeggedRobotCfg.env ):
+class Go2DreamwaqCfg( LeggedRobotDreamwaqCfg ):
+    class env( LeggedRobotDreamwaqCfg.env ):
         num_envs = 3000
         num_actions = 12
         num_observations = 45  # num_obs
@@ -20,7 +20,7 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         env_spacing = 0.5
     
-    class terrain( LeggedRobotCfg.terrain ):
+    class terrain( LeggedRobotDreamwaqCfg.terrain ):
         if SIMULATOR == "genesis":
             mesh_type = "heightfield" # for genesis
         else:
@@ -43,7 +43,7 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
         terrain_proportions = [0.2, 0.1, 0.25, 0.25, 0.2, 
                                0.0, 0.0, 0.0]
         
-    class init_state( LeggedRobotCfg.init_state ):
+    class init_state( LeggedRobotDreamwaqCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'FL_hip_joint': 0.0,   # [rad]
@@ -62,7 +62,7 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
             'RR_calf_joint': -1.5,    # [rad]
         }
 
-    class control( LeggedRobotCfg.control ):
+    class control( LeggedRobotDreamwaqCfg.control ):
         # PD Drive parameters:
         # control_type = 'P'
         stiffness = {'joint': 20.}   # [N*m/rad]
@@ -71,7 +71,7 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
         dt =  0.02  # control frequency 50Hz
         decimation = 4 # decimation: Number of control action updates @ sim DT per policy DT
 
-    class asset( LeggedRobotCfg.asset ):
+    class asset( LeggedRobotDreamwaqCfg.asset ):
         # Common: 
         name = "go2"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
@@ -98,14 +98,14 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
         # IsaacGym:
         flip_visual_attachments = False
   
-    class rewards( LeggedRobotCfg.rewards ):
+    class rewards( LeggedRobotDreamwaqCfg.rewards ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.4
         foot_clearance_target = 0.06 # desired foot clearance above ground [m]
         foot_height_offset = 0.022   # height of the foot coordinate origin above ground [m]
         foot_clearance_tracking_sigma = 0.01
         only_positive_rewards = True
-        class scales( LeggedRobotCfg.rewards.scales ):
+        class scales( LeggedRobotDreamwaqCfg.rewards.scales ):
             # limitation
             dof_pos_limits = -5.0
             collision = -1.0
@@ -123,22 +123,21 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
             feet_air_time = 1.0
             foot_clearance = 0.2
             hip_pos = -0.1
-            dof_pos_stand_still = -1.0
             feet_contact_stand_still = 0.5
 
-    class commands( LeggedRobotCfg.commands ):
+    class commands( LeggedRobotDreamwaqCfg.commands ):
         curriculum = True
         max_curriculum = 1.0
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10.  # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        class ranges( LeggedRobotCfg.commands.ranges ):
+        class ranges( LeggedRobotDreamwaqCfg.commands.ranges ):
             lin_vel_x = [-0.5, 0.5] # min max [m/s]
             lin_vel_y = [-1.0, 1.0]   # min max [m/s]
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
             
-    class domain_rand(LeggedRobotCfg.domain_rand):
+    class domain_rand(LeggedRobotDreamwaqCfg.domain_rand):
         randomize_friction = True
         friction_range = [0.2, 1.7]
         randomize_base_mass = True
@@ -160,21 +159,17 @@ class Go2DreamWaQCfg( LeggedRobotCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
 
-class Go2DreamWaQCfgPPO( LeggedRobotCfgPPO ):
-    seed = 1
-    runner_class_name = "DreamWaQRunner" # DreamWaQ Runner
-    class policy( LeggedRobotCfgPPO.policy ):
+class Go2DreamwaqCfgPPO( LeggedRobotDreamwaqCfgPPO ):
+    class policy( LeggedRobotDreamwaqCfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
         actor_hidden_dims = [512, 256, 128]
         encoder_hidden_dims = [256, 128]
         decoder_hidden_dims = [256, 128]
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
+    class algorithm( LeggedRobotDreamwaqCfgPPO.algorithm ):
         encoder_lr = 2.e-4
         num_encoder_epochs = 1
         vae_kld_weight = 2.0
-    class runner( LeggedRobotCfgPPO.runner ):
-        policy_class_name = "ActorCriticDreamWaQ"
-        algorithm_class_name = "PPO_DreamWaQ"
+    class runner( LeggedRobotDreamwaqCfgPPO.runner ):
         run_name = 'gym_dreamwaq'
         experiment_name = 'go2_rough'
         save_interval = 500

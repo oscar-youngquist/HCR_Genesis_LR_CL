@@ -182,8 +182,8 @@ class LeggedRobot(BaseTask):
         """ Computes observations
         """
         self.obs_buf = torch.cat((self.simulator.base_lin_vel * self.obs_scales.lin_vel,                    # 3
-                                    self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
                                     self.simulator.projected_gravity,                                         # 3
+                                    self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
                                     self.commands[:, :3] * self.commands_scale,                   # 3
                                     (self.simulator.dof_pos - self.simulator.default_dof_pos) 
                                       * self.obs_scales.dof_pos, # num_dofs
@@ -304,10 +304,13 @@ class LeggedRobot(BaseTask):
             forward = quat_apply(self.simulator.base_quat, self.forward_vec)
             heading = torch.atan2(forward[:, 1], forward[:, 0])
             self.commands[:, 2] = torch.clip(
-                0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
+                0.5 * wrap_to_pi(self.commands[:, 3] - heading), self.cfg.commands.ranges.ang_vel_yaw[0], 
+                                                                 self.cfg.commands.ranges.ang_vel_yaw[1])
 
         if self.cfg.terrain.measure_heights:
             self.simulator.get_heights()
+            if self.cfg.terrain.obtain_terrain_info_around_feet:
+                self.simulator.calc_terrain_info_around_feet()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self.simulator.push_robots()
 

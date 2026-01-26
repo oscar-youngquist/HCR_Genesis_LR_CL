@@ -1,47 +1,7 @@
 from legged_gym import *
+from legged_gym.envs.base.legged_robot_ts import *
 
-import torch
-
-from legged_gym.envs.base.legged_robot import LeggedRobot
-from legged_gym.utils.math_utils import wrap_to_pi, quat_apply, torch_rand_float
-from legged_gym.utils.helpers import class_to_dict
-from legged_gym.utils.gs_utils import *
-from collections import deque
-
-class Go2TS(LeggedRobot):
-    def get_observations(self):
-        # actor obs, input of teacher encoder, input of student encoder, critic obs
-        return self.obs_buf, self.privileged_obs_buf, self.obs_history, self.critic_obs_buf
-
-    def step(self, actions):
-        """ Apply actions, simulate, call self.post_physics_step()
-
-        Args:
-            actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
-        """
-        clip_actions = self.cfg.normalization.clip_actions
-        actions = torch.clip(
-            actions, -clip_actions, clip_actions).to(self.device)
-        self.actions[:] = actions[:]
-        self.simulator.step(actions)
-        self.post_physics_step()
-
-        # return clipped obs, clipped states (None), rewards, dones and infos
-        clip_obs = self.cfg.normalization.clip_observations
-        self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
-        if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf = torch.clip(
-                self.privileged_obs_buf, -clip_obs, clip_obs)
-        return self.obs_buf, self.privileged_obs_buf, self.obs_history, self.critic_obs_buf, \
-            self.rew_buf, self.reset_buf, self.extras
-
-    def reset(self):
-        """ Reset all robots"""
-        self.reset_idx(torch.arange(self.num_envs, device=self.device))
-        obs, privileged_obs, obs_history, critic_obs, _, _, _ = self.step(torch.zeros(
-            self.num_envs, self.num_actions, device=self.device, requires_grad=False))
-        return obs, privileged_obs, obs_history, critic_obs
-
+class Go2TS(LeggedRobotTS):
     def compute_observations(self):
         self.obs_buf = torch.cat((
             self.commands[:, :3] * self.commands_scale,                     # 3
@@ -122,44 +82,6 @@ class Go2TS(LeggedRobot):
                     ),
                     dim=-1,
                 )
-
-    def _init_buffers(self):
-        super()._init_buffers()
-        # obs_history
-        self.obs_history_deque = deque(maxlen=self.cfg.env.frame_stack)
-        for _ in range(self.cfg.env.frame_stack):
-            self.obs_history_deque.append(
-                torch.zeros(
-                    self.num_envs,
-                    self.cfg.env.num_observations,
-                    dtype=torch.float,
-                    device=self.device,
-                )
-            )
-        # critic observation buffer
-        self.critic_obs_buf = torch.zeros(
-            (self.num_envs, self.cfg.env.num_critic_obs),
-            dtype=torch.float,
-            device=self.device,
-        )
-        self.critic_obs_deque = deque(maxlen=self.cfg.env.c_frame_stack)
-        for _ in range(self.cfg.env.c_frame_stack):
-            self.critic_obs_deque.append(
-                torch.zeros(
-                    self.num_envs,
-                    self.cfg.env.single_critic_obs_len,
-                    dtype=torch.float,
-                    device=self.device,
-                )
-            )
-
-    def reset_idx(self, env_ids):
-        super().reset_idx(env_ids)
-        # clear obs history for the envs that are reset
-        for i in range(self.obs_history_deque.maxlen):
-            self.obs_history_deque[i][env_ids] *= 0
-        for i in range(self.critic_obs_deque.maxlen):
-            self.critic_obs_deque[i][env_ids] *= 0
     
     def _reset_dofs(self, env_ids):
         """ Resets DOF position and velocities of selected environmments
@@ -182,126 +104,6 @@ class Go2TS(LeggedRobot):
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
 
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
-
-    def _parse_cfg(self, cfg):
-        super()._parse_cfg(cfg)
-        self.num_history_obs = self.cfg.env.num_history_obs
-        self.num_latent_dims = self.cfg.env.num_latent_dims
-        self.num_critic_obs = self.cfg.env.num_critic_obs
-        # if debug_cstr_violation exists in cfg, use it; otherwise, set to False
-        if hasattr(self.cfg.env, 'debug_cstr_violation'):
-            self.debug_cstr = self.cfg.env.debug_cstr_violation
-            self.cstr_violation = {}
-        else:
-            self.debug_cstr = False
-        
-    def post_physics_step(self):
-        """ check terminations, compute observations and rewards
-            calls self._post_physics_step_callback() for common computations 
-            calls self.simulator.draw_debug_vis() if needed
-        """
-        self.episode_length_buf += 1
-        self.common_step_counter += 1
-
-        self.simulator.post_physics_step()
-        self._post_physics_step_callback()
-
-        # compute observations, rewards, resets, ...
-        self.check_termination()
-        if self.debug_cstr:
-            self._log_constraint_violations()
-        self.compute_reward()
-        
-        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
-        self.reset_idx(env_ids)
-        self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
-
-        self.llast_actions[:] = self.last_actions[:]
-        self.last_actions[:] = self.actions[:]
-        self.simulator.last_dof_vel[:] = self.simulator.dof_vel[:]
-        
-        if self.debug:
-            self.simulator.draw_debug_vis()
-    
-    def _log_constraint_violations(self):
-        """Compute various constraints for constraints as terminations. Constraints violations are asssessed then
-        handed out to a constraint manager (ConstraintManager class) that will compute termination probabilities."""
-        if not self.init_done:
-            return
-        # ------------ Soft constraints ----------------
-        
-        # Torque constraint
-        cstr_torque = torch.any(torch.abs(self.simulator.torques) > self.simulator.torque_limits, dim=-1)
-        
-        # Joint velocity constraint
-        cstr_dof_vel = torch.any(torch.abs(self.simulator.dof_vel) > self.simulator.dof_vel_limits, dim=-1)
-        
-        # Action rate constraint (for command smoothness)
-        cstr_action_rate = torch.any(torch.abs(self.actions - self.last_actions) / self.dt > 
-                                     self.cfg.constraints.limits.action_rate, dim=-1)
-        
-        # Base height constraint (too low)
-        cstr_base_height = torch.mean(self.simulator.base_pos[:, 2].unsqueeze(
-            1) - self.simulator.measured_heights, dim=1) < self.cfg.constraints.limits.min_base_height
-
-        # ------------ Hard constraints ----------------
-        
-        # Collision constraint
-        cstr_collision = torch.any(torch.norm(
-            self.simulator.link_contact_forces[:, self.simulator.penalized_contact_indices, :], 
-            dim=-1) > 10.0, dim=1)
-        
-        # Feet stumble constraint
-        cstr_feet_stumble = torch.any(torch.norm(self.simulator.link_contact_forces[:, self.simulator.feet_indices, :], dim=-1) > \
-            4 * torch.abs(self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2]), dim=1)
-
-        # Joint position limit constraint
-        cstr_dof_pos = torch.any(self.simulator.dof_pos < self.simulator.dof_pos_limits[:, 0], dim=-1) * \
-            torch.any(self.simulator.dof_pos > self.simulator.dof_pos_limits[:, 1], dim=-1)
-        
-        # Base orientation constraint
-        cstr_base_orientation = self.simulator.projected_gravity[:, 2] > self.cfg.constraints.limits.max_projected_gravity
-        
-        # ------------ Style constraints ----------------
-        
-        # Standing still constraint, penalize motion when command is zero
-        cstr_stand_still = torch.any(torch.abs(self.simulator.dof_vel) > 4.0, dim=-1) * \
-            (torch.norm(self.commands[:, :3], dim=1) < 0.1).float().unsqueeze(1)
-        
-        # ------------ Log constraint violation ----------------
-        if self.debug_cstr:
-            cstr_names = ["torque", "dof_vel", "action_rate", "base_height",
-                            "collision", "feet_stumble", "dof_pos", "base_orientation",
-                            "stand_still"]
-            cstr_violations = [cstr_torque, cstr_dof_vel, cstr_action_rate, cstr_base_height,
-                                cstr_collision, cstr_feet_stumble, cstr_dof_pos, cstr_base_orientation,
-                                cstr_stand_still]
-            for i in range(len(cstr_names)):
-                name = cstr_names[i]
-                if name not in self.cstr_violation:
-                    self.cstr_violation[name] = 0
-                violation = cstr_violations[i]
-                self.cstr_violation[name] += torch.mean(violation.float()).item()
-    
-    def _post_physics_step_callback(self):
-        """ Callback called before computing terminations, rewards, and observations
-            Default behaviour: Compute ang vel command based on target and heading, compute measured terrain heights and randomly push robots
-        """
-        #
-        env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt) == 0).nonzero(as_tuple=False).flatten()
-        self._resample_commands(env_ids)
-        if self.cfg.commands.heading_command:
-            forward = quat_apply(self.simulator.base_quat, self.forward_vec)
-            heading = torch.atan2(forward[:, 1], forward[:, 0])
-            self.commands[:, 2] = torch.clip(
-                0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
-
-        if self.cfg.terrain.measure_heights:
-            self.simulator.get_heights()
-            if self.cfg.terrain.obtain_terrain_info_around_feet:
-                self.simulator.calc_terrain_info_around_feet()
-        if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
-            self.simulator.push_robots()
     
     def _get_noise_scale_vec(self):
         """ Sets a vector used to scale the noise added to the observations.
@@ -326,8 +128,6 @@ class Go2TS(LeggedRobot):
         noise_vec[21:33] = noise_scales.dof_vel * \
             noise_level * self.obs_scales.dof_vel
         noise_vec[33:45] = 0.  # previous actions
-        # if self.cfg.terrain.measure_heights:
-        #     noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
         return noise_vec
     
     def _reward_feet_air_time(self):

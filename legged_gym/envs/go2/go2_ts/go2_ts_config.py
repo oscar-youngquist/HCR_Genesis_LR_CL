@@ -1,8 +1,8 @@
 from legged_gym import *
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from legged_gym.envs.base.legged_robot_ts_config import LeggedRobotTSCfg, LeggedRobotTSCfgPPO
 
-class Go2TSCfg( LeggedRobotCfg ):
-    class env( LeggedRobotCfg.env ):
+class Go2TSCfg( LeggedRobotTSCfg ):
+    class env( LeggedRobotTSCfg.env ):
         num_envs = 4096
         num_observations = 45  # num_obs
         num_privileged_obs = 94
@@ -19,7 +19,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         num_actions = 12
         env_spacing = 0.5
     
-    class terrain( LeggedRobotCfg.terrain ):
+    class terrain( LeggedRobotTSCfg.terrain ):
         if SIMULATOR == "genesis":
             mesh_type = "heightfield" # for genesis
         else:
@@ -39,7 +39,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.2, 0.1, 0.25, 0.25, 0.2]
         
-    class init_state( LeggedRobotCfg.init_state ):
+    class init_state( LeggedRobotTSCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'FL_hip_joint': 0.0,   # [rad]
@@ -58,7 +58,7 @@ class Go2TSCfg( LeggedRobotCfg ):
             'RR_calf_joint': -1.5,    # [rad]
         }
 
-    class control( LeggedRobotCfg.control ):
+    class control( LeggedRobotTSCfg.control ):
         # PD Drive parameters:
         # control_type = 'P'
         stiffness = {'joint': 20.}   # [N*m/rad]
@@ -67,7 +67,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         dt =  0.02  # control frequency 50Hz
         decimation = 4 # decimation: Number of control action updates @ sim DT per policy DT
 
-    class asset( LeggedRobotCfg.asset ):
+    class asset( LeggedRobotTSCfg.asset ):
         # Common: 
         name = "go2"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
@@ -94,7 +94,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         # IsaacGym:
         flip_visual_attachments = False
   
-    class rewards( LeggedRobotCfg.rewards ):
+    class rewards( LeggedRobotTSCfg.rewards ):
         base_height_target = 1.
         soft_dof_pos_limit = 0.9
         base_height_target = 0.5
@@ -102,7 +102,7 @@ class Go2TSCfg( LeggedRobotCfg ):
         foot_height_offset = 0.022   # height of the foot coordinate origin above ground [m]
         foot_clearance_tracking_sigma = 0.01
         only_positive_rewards = True
-        class scales( LeggedRobotCfg.rewards.scales ):
+        class scales( LeggedRobotTSCfg.rewards.scales ):
             # limitation
             dof_pos_limits = -5.0
             collision = -1.0
@@ -123,19 +123,19 @@ class Go2TSCfg( LeggedRobotCfg ):
             dof_pos_stand_still = -1.0
             feet_contact_stand_still = 0.5
 
-    class commands( LeggedRobotCfg.commands ):
+    class commands( LeggedRobotTSCfg.commands ):
         curriculum = True
         max_curriculum = 1.0
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10.  # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        class ranges( LeggedRobotCfg.commands.ranges ):
+        class ranges( LeggedRobotTSCfg.commands.ranges ):
             lin_vel_x = [-0.5, 0.5] # min max [m/s]
             lin_vel_y = [-1.0, 1.0]   # min max [m/s]
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
             
-    class domain_rand(LeggedRobotCfg.domain_rand):
+    class domain_rand(LeggedRobotTSCfg.domain_rand):
         randomize_friction = True
         friction_range = [0.2, 1.7]
         randomize_base_mass = True
@@ -157,10 +157,9 @@ class Go2TSCfg( LeggedRobotCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
 
-class Go2TSCfgPPO( LeggedRobotCfgPPO ):
+class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
     seed = 1
-    runner_class_name = "TSRunner" # Teacher-Student Runner
-    class policy( LeggedRobotCfgPPO.policy ):
+    class policy( LeggedRobotTSCfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
         privilege_encoder_hidden_dims = [256, 128]
         history_encoder_type = "MLP" # "MLP" or "TCN"
@@ -170,13 +169,10 @@ class Go2TSCfgPPO( LeggedRobotCfgPPO ):
         history_encoder_stride = [1, 2, 1, 2]          # for TCN
         history_encoder_final_layer_dim = 128          # for TCN
         kernel_size = 5
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
+    class algorithm( LeggedRobotTSCfgPPO.algorithm ):
         encoder_lr = 2.e-4
         num_encoder_epochs = 2
-        entropy_coef = 0.01
-    class runner( LeggedRobotCfgPPO.runner ):
-        policy_class_name = "ActorCriticTS"
-        algorithm_class_name = "PPO_TS"
+    class runner( LeggedRobotTSCfgPPO.runner ):
         run_name = 'ts_gs'
         experiment_name = 'go2_rough'
         save_interval = 500

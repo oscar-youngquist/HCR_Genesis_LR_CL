@@ -2,46 +2,14 @@ from legged_gym import *
 
 import torch
 
-from legged_gym.envs.base.legged_robot import LeggedRobot
+from legged_gym.envs.base.legged_robot_ee import LeggedRobotEE
 from legged_gym.utils.math_utils import *
 from legged_gym.utils.helpers import class_to_dict
 from legged_gym.utils.gs_utils import *
 from collections import deque
 from scipy.stats import vonmises
 
-class TRON1PF_EE(LeggedRobot):
-    def get_observations(self):
-        return self.estimator_features_buf, self.estimator_labels_buf, self.privileged_obs_buf
-
-    def step(self, actions):
-        """ Apply actions, simulate, call self.post_physics_step()
-
-        Args:
-            actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
-        """
-        clip_actions = self.cfg.normalization.clip_actions
-        actions = torch.clip(
-            actions, -clip_actions, clip_actions).to(self.device)
-        self.actions[:] = actions[:]
-        self.simulator.step(actions)
-        self.post_physics_step()
-
-        # return clipped obs, clipped states (None), rewards, dones and infos
-        clip_obs = self.cfg.normalization.clip_observations
-        self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
-        if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf = torch.clip(
-                self.privileged_obs_buf, -clip_obs, clip_obs)
-        return self.estimator_features_buf, self.estimator_labels_buf, self.privileged_obs_buf, \
-            self.rew_buf, self.reset_buf, self.extras
-
-    def reset(self):
-        """ Reset all robots"""
-        self.reset_idx(torch.arange(self.num_envs, device=self.device))
-        estimator_features, estimator_labels, privileged_obs, _, _, _ = self.step(torch.zeros(
-            self.num_envs, self.num_actions, device=self.device, requires_grad=False))
-        return estimator_features, estimator_labels, privileged_obs
-
+class TRON1PF_EE(LeggedRobotEE):
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations 
@@ -341,8 +309,6 @@ class TRON1PF_EE(LeggedRobot):
 
     def _parse_cfg(self, cfg):
         super()._parse_cfg(cfg)
-        self.num_estimator_features = cfg.env.num_estimator_features
-        self.num_estimator_labels = cfg.env.num_estimator_labels
         # Periodic Reward Framework. Constants are init here.
         self.kappa = self.cfg.rewards.periodic_reward_framework.kappa
         self.gait_function_type = self.cfg.rewards.periodic_reward_framework.gait_function_type
@@ -471,18 +437,6 @@ class TRON1PF_EE(LeggedRobot):
         rew = torch.square(base_height - self.cfg.rewards.base_height_target)
         return torch.exp(-rew / self.cfg.rewards.base_height_tracking_sigma)
     
-    def _reward_feet_air_time(self):
-        # Reward long steps
-        contact = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.
-        contact_filt = torch.logical_or(contact, self.last_contacts)
-        self.last_contacts = contact
-        first_contact = (self.feet_air_time > 0.) * contact_filt
-        self.feet_air_time += self.dt
-        rew_airTime = torch.sum((self.feet_air_time - 0.25) * first_contact, dim=1)  # reward only on first contact with the ground
-        rew_airTime *= torch.norm(self.commands[:, :2], dim=1) > 0.1  # no reward for zero command
-        self.feet_air_time *= ~contact_filt
-        return rew_airTime
-    
     def _reward_foot_clearance(self):
         """
         Encourage feet to be close to desired height while swinging
@@ -505,8 +459,3 @@ class TRON1PF_EE(LeggedRobot):
             self.simulator.feet_pos[:, 0, [0, 1]] - self.simulator.feet_pos[:, 1, [0, 1]], dim=-1)
         return torch.max(torch.zeros_like(feet_xy_distance),
                          self.cfg.rewards.foot_distance_threshold - feet_xy_distance)
-    
-    def _reward_no_fly(self):
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
-        single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact

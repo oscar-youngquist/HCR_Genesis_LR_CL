@@ -1,8 +1,8 @@
 from legged_gym import *
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from legged_gym.envs.base.legged_robot_ee_config import LeggedRobotEECfg, LeggedRobotEECfgPPO
 
-class TRON1PF_EECfg( LeggedRobotCfg ):
-    class env( LeggedRobotCfg.env ):
+class TRON1PF_EECfg( LeggedRobotEECfg ):
+    class env( LeggedRobotEECfg.env ):
         num_envs = 4096
         num_single_obs = 31  # number of elements in single step observation
         frame_stack = 10     # number of frames to stack for obs_history
@@ -16,7 +16,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         env_spacing = 3.0
         fail_to_terminal_time_s = 0.1
     
-    class terrain( LeggedRobotCfg.terrain ):
+    class terrain( LeggedRobotEECfg.terrain ):
         if SIMULATOR == "genesis":
             mesh_type = "heightfield" # for genesis
         else:
@@ -37,7 +37,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.2, 0.2, 0.2, 0.2, 0.2]
         
-    class init_state( LeggedRobotCfg.init_state ):
+    class init_state( LeggedRobotEECfg.init_state ):
         pos = [0.0, 0.0, 0.83] # x,y,z [m]
         default_joint_angles = {  # target angles when action = 0.0
             "abad_L_Joint": 0.0,
@@ -64,7 +64,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         sit_pitch_angle = -0.2
         sit_init_percent = 0.7  # probability of resetting env in sit pose
 
-    class control( LeggedRobotCfg.control ):
+    class control( LeggedRobotEECfg.control ):
         # PD Drive parameters:
         # control_type = 'P'
         stiffness = {'Joint': 42.}   # [N*m/rad]
@@ -73,7 +73,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         decimation = 4 # decimation: Number of control action updates @ sim DT per policy DT
         dt =  0.02  # control frequency 50Hz
 
-    class asset( LeggedRobotCfg.asset ):
+    class asset( LeggedRobotEECfg.asset ):
         # Common: 
         name = "tron1_pf"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/PF_TRON1A/urdf/robot.urdf'
@@ -95,7 +95,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         # IsaacGym:
         flip_visual_attachments = False
   
-    class rewards( LeggedRobotCfg.rewards ):
+    class rewards( LeggedRobotEECfg.rewards ):
         soft_dof_pos_limit = 0.95
         base_height_target = 0.75
         foot_clearance_target = 0.06 # desired foot clearance above ground [m]
@@ -105,7 +105,7 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         foot_distance_threshold = 0.115
         only_positive_rewards = False
         max_projected_gravity = -0.2
-        class scales( LeggedRobotCfg.rewards.scales ):
+        class scales( LeggedRobotEECfg.rewards.scales ):
             # limitation
             keep_balance = 1.0
             dof_pos_limits = -2.0
@@ -139,19 +139,19 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
             theta_right = 0.5
             gait_period = 0.5  # [s]
 
-    class commands( LeggedRobotCfg.commands ):
+    class commands( LeggedRobotEECfg.commands ):
         curriculum = True
         max_curriculum = 0.8
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10.  # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        class ranges( LeggedRobotCfg.commands.ranges ):
+        class ranges( LeggedRobotEECfg.commands.ranges ):
             lin_vel_x = [-0.5, 0.5] # min max [m/s]
             lin_vel_y = [-0.6, 0.6]   # min max [m/s]
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
             
-    class domain_rand(LeggedRobotCfg.domain_rand):
+    class domain_rand(LeggedRobotEECfg.domain_rand):
         randomize_friction = True
         friction_range = [0.0, 1.7]
         randomize_base_mass = True
@@ -173,24 +173,20 @@ class TRON1PF_EECfg( LeggedRobotCfg ):
         randomize_joint_damping = True
         joint_damping_range = [1.4, 1.45]
     
-    class normalization( LeggedRobotCfg.normalization ):
+    class normalization( LeggedRobotEECfg.normalization ):
         clip_actions = 20.
 
-class TRON1PF_EECfgPPO( LeggedRobotCfgPPO ):
-    seed = 1
-    runner_class_name = "EERunner" # Teacher-Student Runner
-    class policy( LeggedRobotCfgPPO.policy ):
+class TRON1PF_EECfgPPO( LeggedRobotEECfgPPO ):
+    class policy( LeggedRobotEECfgPPO.policy ):
         init_noise_std = 0.5
         actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [1024, 256, 128]
         estimator_hidden_dims = [256, 128]
         clip_actions = TRON1PF_EECfg.normalization.clip_actions
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
+    class algorithm( LeggedRobotEECfgPPO.algorithm ):
         estimator_lr = 2.e-4
         num_estimator_epochs = 2
-    class runner( LeggedRobotCfgPPO.runner ):
-        policy_class_name = "ActorCriticEE"
-        algorithm_class_name = "PPO_EE"
+    class runner( LeggedRobotEECfgPPO.runner ):
         if SIMULATOR == "genesis":
             run_name = "gs_ee"
         else:

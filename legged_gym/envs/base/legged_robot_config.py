@@ -25,6 +25,10 @@ class LeggedRobotCfg(BaseConfig):
         dynamic_friction = 1.0
         restitution = 0.
         # rough terrain only:
+        # obtain terrain height information around feet (default: 9 points around feet), measure_
+        # x  x   x
+        # x F(x) x
+        # x  x   x (x: height point, F: foot position)
         obtain_terrain_info_around_feet = False
         measure_heights = False
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
@@ -42,25 +46,11 @@ class LeggedRobotCfg(BaseConfig):
         # trimesh only:
         slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
 
-    class commands:
-        curriculum = False
-        max_curriculum = 1.
-        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10. # time before command are changed[s]
-        heading_command = True # if true: compute ang vel command from heading error
-        curriculum_threshold = 0.8 # threshold for curriculum learning, if the tracking reward is above this threshold, increase the command range
-        class ranges:
-            lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
-            ang_vel_yaw = [-1, 1]    # min max [rad/s]
-            heading = [-3.14, 3.14]
-
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
         # [Convention] When calling reset_root_states() of simulator, the input quaternion is in gym format [x,y,z,w]
         #  simulators will convert it to their own format if needed.
-        rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym and genesis
-        rot_gs = [1.0, 0.0, 0.0, 0.0] # w,x,y,z [quat] for create_envs in Genesis simulator
+        rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym(xyzw) and genesis(wxyz)
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
         # initial state randomization
@@ -70,7 +60,7 @@ class LeggedRobotCfg(BaseConfig):
         default_joint_angles = { # target angles when action = 0.0
             "joint_a": 0., 
             "joint_b": 0.}
-
+    
     class control:
         control_type = 'P' # P: position, V: velocity, T: torques
         # PD Drive parameters:
@@ -81,7 +71,7 @@ class LeggedRobotCfg(BaseConfig):
         dt =  0.02 # control frequency 50Hz
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
-        
+    
     class asset:
         # Common
         name = None
@@ -110,33 +100,6 @@ class LeggedRobotCfg(BaseConfig):
         max_linear_velocity = 1000.
         armature = 0.
         thickness = 0.01
-        
-    class domain_rand:
-        randomize_friction = True
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = True
-        added_mass_range = [-1., 1.]
-        push_robots = True
-        push_interval_s = 15
-        max_push_vel_xy = 1.
-        randomize_com_displacement = True
-        com_pos_x_range = [-0.01, 0.01]
-        com_pos_y_range = [-0.01, 0.01]
-        com_pos_z_range = [-0.01, 0.01]
-        randomize_ctrl_delay = False
-        ctrl_delay_step_range = [0, 1]
-        randomize_pd_gain = False
-        kp_range = [0.8, 1.2]
-        kd_range = [0.8, 1.2]
-        # Randomizing joint armature/friction/damping in Genesis require batching dofs/links info, 
-        # which will slow the simulation greatly.
-        # It is recommended to keep them false. If needed, please use it in IsaacGym only.
-        randomize_joint_armature = False
-        joint_armature_range = [0.0, 0.05]  # [N*m*s/rad]
-        randomize_joint_friction = False
-        joint_friction_range = [0.0, 0.1]
-        randomize_joint_damping = False
-        joint_damping_range = [0.0, 1.0]
 
     class rewards:
         class scales:
@@ -167,6 +130,46 @@ class LeggedRobotCfg(BaseConfig):
         foot_clearance_tracking_sigma = 0.01
         # termination conditions
         max_projected_gravity = -0.1
+    
+    class commands:
+        curriculum = False
+        max_curriculum = 1.
+        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        resampling_time = 10. # time before command are changed[s]
+        heading_command = True # if true: compute ang vel command from heading error
+        curriculum_threshold = 0.8 # threshold for curriculum learning, if the tracking reward is above this threshold, increase the command range
+        class ranges:
+            lin_vel_x = [-1.0, 1.0] # min max [m/s]
+            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
+            ang_vel_yaw = [-1, 1]    # min max [rad/s]
+            heading = [-3.14, 3.14]
+    
+    class domain_rand:
+        randomize_friction = True
+        friction_range = [0.5, 1.25]
+        randomize_base_mass = True
+        added_mass_range = [-1., 1.]
+        push_robots = True
+        push_interval_s = 15
+        max_push_vel_xy = 1.
+        randomize_com_displacement = True
+        com_pos_x_range = [-0.01, 0.01]
+        com_pos_y_range = [-0.01, 0.01]
+        com_pos_z_range = [-0.01, 0.01]
+        randomize_ctrl_delay = False
+        ctrl_delay_step_range = [0, 1]
+        randomize_pd_gain = False
+        kp_range = [0.8, 1.2]
+        kd_range = [0.8, 1.2]
+        # Randomizing joint armature/friction/damping in Genesis require batching dofs/links info, 
+        # which will slow the simulation greatly.
+        # It is recommended to keep them false. If needed, please use it in IsaacGym only.
+        randomize_joint_armature = False
+        joint_armature_range = [0.0, 0.05]  # [N*m*s/rad]
+        randomize_joint_friction = False
+        joint_friction_range = [0.0, 0.1]
+        randomize_joint_damping = False
+        joint_damping_range = [0.0, 1.0]
 
     class normalization:
         class obs_scales:

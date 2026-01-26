@@ -155,7 +155,7 @@ class GenesisSimulator(Simulator):
                 merge_fixed_links=True,
                 links_to_keep=self.cfg.asset.links_to_keep,
                 pos=np.array(self.cfg.init_state.pos),
-                quat=np.array(self.cfg.init_state.rot_gs),
+                quat=np.array([1.0, 0.0, 0.0, 0.0]),  # wxyz
                 fixed=self.cfg.asset.fix_base_link,
             ),
             # visualize_contact=self.debug,
