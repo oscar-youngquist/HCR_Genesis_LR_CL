@@ -162,7 +162,6 @@ class Go2DreamwaqCfg( LeggedRobotDreamwaqCfg ):
 class Go2DreamwaqCfgPPO( LeggedRobotDreamwaqCfgPPO ):
     class policy( LeggedRobotDreamwaqCfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
-        actor_hidden_dims = [512, 256, 128]
         encoder_hidden_dims = [256, 128]
         decoder_hidden_dims = [256, 128]
     class algorithm( LeggedRobotDreamwaqCfgPPO.algorithm ):

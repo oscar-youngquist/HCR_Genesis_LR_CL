@@ -270,6 +270,11 @@ class LeggedRobotCfgPPO(BaseConfig):
         lam = 0.95
         desired_kl = 0.01
         max_grad_norm = 1.
+        
+        # Whether to use SPO(Simple Policy Optimization), refer to refer to https://arxiv.org/abs/2401.16025
+        # SPO may collapse with default param settings for PPO, especially with high learning rate
+        # learning_rate=2.5e-4, schedule='fixed' are validated
+        use_spo = False 
 
     class runner:
         policy_class_name = 'ActorCritic'

@@ -12,7 +12,6 @@ from legged_gym.envs.base.legged_robot_nav import LeggedRobotNav
 from legged_gym.utils.math_utils import torch_rand_float, quat_from_euler_xyz
 from legged_gym.utils.helpers import class_to_dict
 from legged_gym.utils.gs_utils import *
-from .go2_nav_config import GO2NavCfg
 
 class GO2Nav(LeggedRobotNav):
     
@@ -69,7 +68,6 @@ class GO2Nav(LeggedRobotNav):
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
         if self.cfg.sensor.add_depth:
-            
             self.simulator.update_depth_images()
         self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
@@ -144,7 +142,7 @@ class GO2Nav(LeggedRobotNav):
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
     
     def _reward_move_in_direction(self):
-        if self.common_step_counter <= 24 * 200:
+        if self.common_step_counter <= 48 * 500:
             # Reward moving in the commanded direction
             command_dir = self.commands[:, :2] / (torch.norm(self.commands[:, :2], dim=1, keepdim=True) + 1e-6)
             vel_xy = self.simulator.base_lin_vel[:, :2] / torch.norm(self.simulator.base_lin_vel[:, :2], dim=1, keepdim=True)

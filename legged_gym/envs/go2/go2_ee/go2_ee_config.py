@@ -155,7 +155,6 @@ class Go2EECfg( LeggedRobotEECfg ):
 class Go2EECfgPPO( LeggedRobotEECfgPPO ):
     seed = 1
     class policy( LeggedRobotEECfgPPO.policy ):
-        actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [1024, 256, 128]
         estimator_hidden_dims = [256, 128]
     class algorithm( LeggedRobotEECfgPPO.algorithm ):

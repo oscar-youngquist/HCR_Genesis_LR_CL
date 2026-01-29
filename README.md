@@ -2,18 +2,6 @@
 
 A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for training legged robots in [Genesis](https://github.com/Genesis-Embodied-AI/Genesis/tree/main) and [IsaacGym](https://developer.nvidia.com/isaac-gym)
 
-## Table of Contents
-
-- [🦿 Legged Robotics in Genesis](#-legged-robotics-in-genesis)
-  - [Table of Contents](#table-of-contents)
-  - [🌟 Features](#-features)
-  - [🛠 Installation and Usage](#-installation-and-usage)
-  - [🖼️ Gallery](#️-gallery)
-  - [🙏 Acknowledgements](#-acknowledgements)
-  - [TODO](#todo)
-
----
-
 ## 🌟 Features
 
 - **Totally based on [legged_gym](https://github.com/leggedrobotics/legged_gym)**
@@ -33,6 +21,7 @@ A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for
   | Explicit Estimator | [Concurrent Training of a Control Policy and a State Estimator for Dynamic and Robust Legged Locomotion](https://arxiv.org/abs/2202.05481) | [go2_ee](https://github.com/lupinjia/genesis_lr/tree/main/legged_gym/envs/go2/go2_ee) |
   | Constraints as Terminations | [CaT: Constraints as Terminations for Legged Locomotion Reinforcement Learning](https://constraints-as-terminations.github.io/) | [go2_cat](https://github.com/lupinjia/genesis_lr/tree/main/legged_gym/envs/go2/go2_cat) |
   | DreamWaQ | [DreamWaQ: Learning Robust Quadrupedal Locomotion With Implicit Terrain Imagination via Deep Reinforcement Learning](https://arxiv.org/abs/2301.10602) | [go2_dreamwaq](https://github.com/lupinjia/genesis_lr/tree/main/legged_gym/envs/go2/go2_dreamwaq) |
+  | SPO (Simple Policy Optimization) | [Simple Policy Optimization](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://github.com/MyRepositories-hub/Simple-Policy-Optimization&ved=2ahUKEwjL9vLX7auSAxVZlFYBHWkFBkIQFnoECBgQAQ&usg=AOvVaw1nGHIXtdYwpu3WV9lUgRWN) | [`legged_robot_config.py`](https://github.com/lupinjia/genesis_lr/tree/main/legged_gym/envs/base/legged_robot_config.py) |
 
 ## 🛠 Installation and Usage
 

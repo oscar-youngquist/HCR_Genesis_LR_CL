@@ -63,7 +63,7 @@ class ActorCriticDreamWaQ(nn.Module):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " +
                   str([key for key in kwargs.keys()]))
-        super(ActorCriticDreamWaQ, self).__init__()
+        super().__init__()
 
         # Input dimension of actor (proprioceptive obs + base_lin_vel(estimated) + latent)
         mlp_input_dim_a = num_actor_obs + num_explicit_dims + num_latent_dims

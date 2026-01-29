@@ -2,7 +2,6 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 # TROn1 Point Foot
 class TRON1PFCfg( LeggedRobotCfg ):
-    
     class env( LeggedRobotCfg.env ):
         num_envs = 4096
         num_single_obs = 27
@@ -118,11 +117,6 @@ class TRON1PFCfg( LeggedRobotCfg ):
         com_pos_z_range = [-0.03, 0.03]
 
 class TRON1PFCfgPPO( LeggedRobotCfgPPO ):
-    class policy (LeggedRobotCfgPPO.policy ):
-        init_noise_std = 1.0
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'tron1_pf'

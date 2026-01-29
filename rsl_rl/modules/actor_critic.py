@@ -47,7 +47,7 @@ class ActorCritic(nn.Module):
                         **kwargs):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str([key for key in kwargs.keys()]))
-        super(ActorCritic, self).__init__()
+        super().__init__()
 
         activation = get_activation(activation)
 

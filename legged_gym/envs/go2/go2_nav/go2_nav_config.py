@@ -159,23 +159,12 @@ class GO2NavCfg( LeggedRobotNavCfg ):
             time_to_target = 0.25
 
 class GO2NavCfgPPO( LeggedRobotNavCfgPPO ):
-    class policy (LeggedRobotNavCfgPPO.policy ):
-        init_noise_std = 1.0
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-        # only for 'ActorCriticRecurrent':
-        # rnn_type = 'lstm'
-        # rnn_hidden_size = 512
-        # rnn_num_layers = 1
-    class algorithm( LeggedRobotNavCfgPPO.algorithm ):
-        entropy_coef = 0.01
     class runner( LeggedRobotNavCfgPPO.runner ):
         num_steps_per_env = 48
         policy_class_name = 'ActorCritic'
         run_name = ''
         experiment_name = 'go2_nav'
         save_interval = 500
-        load_run = "Nov07_22-21-20_"
+        load_run = "Jan28_23-15-15_"
         checkpoint = -1
         max_iterations = 6000

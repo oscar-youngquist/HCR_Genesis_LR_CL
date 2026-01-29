@@ -39,9 +39,10 @@ import torch
 from rsl_rl.algorithms import PPO_DreamWaQ
 from rsl_rl.modules import ActorCriticDreamWaQ
 from rsl_rl.env import VecEnv
+from .on_policy_runner import OnPolicyRunner
 
 
-class DreamWaQRunner:
+class DreamWaQRunner(OnPolicyRunner):
 
     def __init__(self,
                  env: VecEnv,
@@ -49,11 +50,9 @@ class DreamWaQRunner:
                  log_dir=None,
                  device='cpu'):
 
-        self.cfg=train_cfg["runner"]
-        self.alg_cfg = train_cfg["algorithm"]
-        self.policy_cfg = train_cfg["policy"]
-        self.device = device
-        self.env = env
+        super().__init__(env, train_cfg, log_dir, device)
+    
+    def _init_agent_and_algo(self):
         actor_critic_class = eval(self.cfg["policy_class_name"]) # ActorCriticTS
         actor_critic: ActorCriticDreamWaQ = actor_critic_class( 
                                                         self.env.num_obs,
@@ -66,30 +65,16 @@ class DreamWaQRunner:
                                                         **self.policy_cfg).to(self.device)
         alg_class = eval(self.cfg["algorithm_class_name"]) # PPO_DreamWaQ
         self.alg: PPO_DreamWaQ = alg_class(actor_critic, device=self.device, **self.alg_cfg)
-        self.num_steps_per_env = self.cfg["num_steps_per_env"]
-        self.save_interval = self.cfg["save_interval"]
-
+    
+    def _init_storage(self):
         # Init storage and model
         self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, 
                               [self.env.num_obs], [self.env.num_privileged_obs], 
                               [self.env.num_history_obs], [self.env.num_explicit_dims], 
                               [self.env.num_decoder_output], [self.env.num_actions])
-
-        # Log
-        self.log_dir = log_dir
-        self.writer = None
-        self.tot_timesteps = 0
-        self.tot_time = 0
-        self.current_learning_iteration = 0
-
-        self.env.reset()
     
     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
-        # initialize writer
-        if self.log_dir is not None and self.writer is None:
-            self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
-        if init_at_random_ep_len:
-            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
+        self._pre_learn(init_at_random_ep_len)
         obs, privileged_obs, obs_history, explicit_info_labels, next_state = self.env.get_observations()
         obs, privileged_obs, obs_history, explicit_info_labels, next_state = obs.to(self.device), privileged_obs.to(self.device), \
             obs_history.to(self.device), explicit_info_labels.to(self.device), next_state.to(self.device)
@@ -220,26 +205,3 @@ class DreamWaQRunner:
                        f"""{'ETA:':>{pad}} {self.tot_time / (locs['it'] + 1) * (
                                locs['num_learning_iterations'] - locs['it']):.1f}s\n""")
         print(log_string)
-
-    def save(self, path, infos=None):
-        torch.save({
-            'model_state_dict': self.alg.actor_critic.state_dict(),
-            'optimizer_state_dict': self.alg.optimizer.state_dict(),
-            'iter': self.current_learning_iteration,
-            'infos': infos,
-            }, path)
-
-    def load(self, path, load_optimizer=True):
-        loaded_dict = torch.load(path)
-        self.alg.actor_critic.load_state_dict(loaded_dict['model_state_dict'])
-        if load_optimizer:
-            self.alg.optimizer.load_state_dict(loaded_dict['optimizer_state_dict'])
-        self.current_learning_iteration = loaded_dict['iter']
-        return loaded_dict['infos']
-
-    def get_inference_policy(self, device=None):
-        """Use student encoder to evaluate"""
-        self.alg.actor_critic.eval() # switch to evaluation mode (dropout for example)
-        if device is not None:
-            self.alg.actor_critic.to(device)
-        return self.alg.actor_critic.act_inference

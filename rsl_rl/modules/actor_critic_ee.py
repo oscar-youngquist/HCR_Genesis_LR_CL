@@ -28,7 +28,7 @@ class ActorCriticEE(nn.Module):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " +
                   str([key for key in kwargs.keys()]))
-        super(ActorCriticEE, self).__init__()
+        super().__init__()
 
         activation = get_activation(activation)
 

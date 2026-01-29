@@ -162,7 +162,6 @@ class GO2WTWCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
 class GO2WTWCfgPPO(LeggedRobotCfgPPO):
-    seed = 1
     class runner(LeggedRobotCfgPPO.runner):
         run_name = 'wtw_gym'
         experiment_name = 'go2'

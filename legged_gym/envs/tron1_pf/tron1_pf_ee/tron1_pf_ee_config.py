@@ -179,7 +179,6 @@ class TRON1PF_EECfg( LeggedRobotEECfg ):
 class TRON1PF_EECfgPPO( LeggedRobotEECfgPPO ):
     class policy( LeggedRobotEECfgPPO.policy ):
         init_noise_std = 0.5
-        actor_hidden_dims = [512, 256, 128]
         critic_hidden_dims = [1024, 256, 128]
         estimator_hidden_dims = [256, 128]
         clip_actions = TRON1PF_EECfg.normalization.clip_actions

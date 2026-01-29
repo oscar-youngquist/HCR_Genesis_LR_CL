@@ -4,9 +4,9 @@ from legged_gym.envs.base.legged_robot_ts_config import LeggedRobotTSCfg, Legged
 class Go2TSCfg( LeggedRobotTSCfg ):
     class env( LeggedRobotTSCfg.env ):
         num_envs = 4096
-        num_observations = 45  # num_obs
+        num_observations = 45     # num_obs
         num_privileged_obs = 94
-        frame_stack = 20    # number of frames to stack for obs_history
+        frame_stack = 20          # number of frames to stack for obs_history
         num_history_obs = int(num_observations * frame_stack)
         num_latent_dims = num_privileged_obs
         c_frame_stack = 5
@@ -120,7 +120,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
             feet_air_time = 1.0
             foot_clearance = 0.2
             hip_pos = -0.1
-            dof_pos_stand_still = -1.0
             feet_contact_stand_still = 0.5
 
     class commands( LeggedRobotTSCfg.commands ):
@@ -160,6 +159,7 @@ class Go2TSCfg( LeggedRobotTSCfg ):
 class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
     seed = 1
     class policy( LeggedRobotTSCfgPPO.policy ):
+        init_noise_std = 0.5
         critic_hidden_dims = [1024, 256, 128]
         privilege_encoder_hidden_dims = [256, 128]
         history_encoder_type = "MLP" # "MLP" or "TCN"
@@ -173,7 +173,11 @@ class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
         encoder_lr = 2.e-4
         num_encoder_epochs = 2
     class runner( LeggedRobotTSCfgPPO.runner ):
-        run_name = 'ts_gs'
+        run_name = "ts"
+        if SIMULATOR == "genesis":
+            run_name += '_genesis'
+        elif SIMULATOR == "isaacgym":
+            run_name += '_isaacgym'
         experiment_name = 'go2_rough'
         save_interval = 500
         load_run = "Dec15_10-47-28_ts_gs"
