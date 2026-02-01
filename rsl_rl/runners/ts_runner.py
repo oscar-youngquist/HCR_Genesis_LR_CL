@@ -35,7 +35,6 @@ import statistics
 
 import wandb
 from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
 import torch
 
 from rsl_rl.algorithms import PPO_TS

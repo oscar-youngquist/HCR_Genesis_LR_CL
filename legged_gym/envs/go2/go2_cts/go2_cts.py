@@ -2,46 +2,14 @@ from legged_gym import *
 
 import torch
 
-from legged_gym.envs.base.legged_robot import LeggedRobot
+from legged_gym.envs.base.legged_robot_cts import LeggedRobotCTS
 from legged_gym.utils.math_utils import wrap_to_pi, quat_apply, torch_rand_float
 from legged_gym.utils.helpers import class_to_dict
 from legged_gym.utils.gs_utils import *
 from collections import deque
 import random
 
-class Go2CTS(LeggedRobot):
-    def get_observations(self):
-        return self.obs_buf, self.privileged_obs_buf, self.obs_history, self.critic_obs_buf
-
-    def step(self, actions):
-        """ Apply actions, simulate, call self.post_physics_step()
-
-        Args:
-            actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
-        """
-        clip_actions = self.cfg.normalization.clip_actions
-        actions = torch.clip(
-            actions, -clip_actions, clip_actions).to(self.device)
-        self.actions[:] = actions[:]
-        self.simulator.step(actions)
-        self.post_physics_step()
-
-        # return clipped obs, clipped states (None), rewards, dones and infos
-        clip_obs = self.cfg.normalization.clip_observations
-        self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
-        if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf = torch.clip(
-                self.privileged_obs_buf, -clip_obs, clip_obs)
-        return self.obs_buf, self.privileged_obs_buf, self.obs_history, self.critic_obs_buf, \
-            self.rew_buf, self.reset_buf, self.extras
-
-    def reset(self):
-        """ Reset all robots"""
-        self.reset_idx(torch.arange(self.num_envs, device=self.device))
-        obs, privileged_obs, obs_history, critic_obs, _, _, _ = self.step(torch.zeros(
-            self.num_envs, self.num_actions, device=self.device, requires_grad=False))
-        return obs, privileged_obs, obs_history, critic_obs
-
+class Go2CTS(LeggedRobotCTS):
     def compute_observations(self):
         self.obs_buf = torch.cat((
             self.commands[:, :3] * self.commands_scale,                     # 3
@@ -63,15 +31,13 @@ class Go2CTS(LeggedRobot):
                      self.kp_scale_offset),                 # num_actions
                     (self.simulator._kd_scale - 
                      self.kd_scale_offset),                 # num_actions
-                    self.simulator._joint_armature,         # 1
-                    self.simulator._joint_stiffness,        # 1
-                    self.simulator._joint_damping,          # 1
             ), dim=-1)
         
         # Critic observation
         critic_obs = torch.cat((
             self.obs_buf,                 # num_observations
             domain_randomization_info,    # 31
+            self.simulator.base_lin_vel * self.obs_scales.lin_vel,     # 3
         ), dim=-1)
         if self.cfg.asset.obtain_link_contact_states:
             critic_obs = torch.cat(
@@ -112,6 +78,7 @@ class Go2CTS(LeggedRobot):
                     domain_randomization_info,                       # 34
                     self.simulator.height_around_feet.flatten(1,2),  # 9*number of feet
                     self.simulator.normal_vector_around_feet,        # 3*number of feet
+                    self.simulator.base_lin_vel * self.obs_scales.lin_vel,    # 3
                 ),
                 dim=-1,
             )
@@ -124,88 +91,13 @@ class Go2CTS(LeggedRobot):
                     dim=-1,
                 )
 
-    def _init_buffers(self):
-        super()._init_buffers()
-        # obs_history
-        self.obs_history_deque = deque(maxlen=self.cfg.env.frame_stack)
-        for _ in range(self.cfg.env.frame_stack):
-            self.obs_history_deque.append(
-                torch.zeros(
-                    self.num_envs,
-                    self.cfg.env.num_observations,
-                    dtype=torch.float,
-                    device=self.device,
-                )
-            )
-        # critic observation buffer
-        self.critic_obs_buf = torch.zeros(
-            (self.num_envs, self.cfg.env.num_critic_obs),
-            dtype=torch.float,
-            device=self.device,
-        )
-        self.critic_obs_deque = deque(maxlen=self.cfg.env.c_frame_stack)
-        for _ in range(self.cfg.env.c_frame_stack):
-            self.critic_obs_deque.append(
-                torch.zeros(
-                    self.num_envs,
-                    self.cfg.env.single_critic_obs_len,
-                    dtype=torch.float,
-                    device=self.device,
-                )
-            )
-
-
     def reset_idx(self, env_ids):
-        if len(env_ids) == 0:
-            return
-        # update curriculum
-        if self.cfg.terrain.curriculum:
-            self._update_terrain_curriculum(env_ids)
-        # avoid updating command curriculum at each step since the maximum command is common to all envs
-        if self.cfg.commands.curriculum and (self.common_step_counter % self.max_episode_length ==0):
-            self.update_command_curriculum(env_ids)
-
-        self._resample_commands(env_ids)
-        self._reset_dofs(env_ids)
-        self.simulator.reset_idx(env_ids)
-
-        # reset buffers
-        self.llast_actions[env_ids] = 0.
-        self.last_actions[env_ids] = 0.
-        self.feet_air_time[env_ids] = 0.
-        self.episode_length_buf[env_ids] = 0
-        self.reset_buf[env_ids] = 1
-
-        # fill extras
-        self.extras["episode"] = {}
-        for key in self.episode_sums.keys():
-            self.extras["episode"]['rew_' + key] = torch.mean(
-                self.episode_sums[key][env_ids]) / self.max_episode_length_s
-            self.episode_sums[key][env_ids] = 0.
-        # log additional curriculum info
+        super().reset_idx(env_ids)
         if self.cfg.terrain.curriculum:
             self.extras["episode"]["teacher_terrain_level"] = torch.mean(
                 self.simulator.terrain_levels[:self.num_teacher].float())
             self.extras["episode"]["student_terrain_level"] = torch.mean(
                 self.simulator.terrain_levels[self.num_teacher:].float())
-        if self.cfg.commands.curriculum:
-            self.extras["episode"]["max_command_x"] = self.command_ranges["lin_vel_x"][1]
-        # send timeout info to the algorithm
-        if self.cfg.env.send_timeouts:
-            self.extras["time_outs"] = self.time_out_buf
-
-        # reset action queue and delay
-        if self.cfg.domain_rand.randomize_ctrl_delay:
-            self.action_queue[env_ids] *= 0.
-            self.action_queue[env_ids] = 0.
-            self.action_delay[env_ids] = torch.randint(self.cfg.domain_rand.ctrl_delay_step_range[0],
-                                                       self.cfg.domain_rand.ctrl_delay_step_range[1]+1, (len(env_ids),), device=self.device, requires_grad=False)
-            
-        # clear obs history for the envs that are reset
-        for i in range(self.obs_history_deque.maxlen):
-            self.obs_history_deque[i][env_ids] *= 0
-        for i in range(self.critic_obs_deque.maxlen):
-            self.critic_obs_deque[i][env_ids] *= 0
     
     def _reset_dofs(self, env_ids):
         """ Resets DOF position and velocities of selected environmments
@@ -228,66 +120,6 @@ class Go2CTS(LeggedRobot):
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
 
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
-
-    def _parse_cfg(self, cfg):
-        super()._parse_cfg(cfg)
-        self.num_history_obs = self.cfg.env.num_history_obs
-        self.num_latent_dims = self.cfg.env.num_latent_dims
-        self.num_critic_obs = self.cfg.env.num_critic_obs
-        self.num_teacher = self.cfg.env.num_teacher
-        # determine privileged observation offset to normalize privileged observations
-        self.friction_value_offset = (self.cfg.domain_rand.friction_range[0] + 
-                                      self.cfg.domain_rand.friction_range[1]) / 2  # mean value
-        self.kp_scale_offset = (self.cfg.domain_rand.kp_range[0] +
-                                self.cfg.domain_rand.kp_range[1]) / 2  # mean value
-        self.kd_scale_offset = (self.cfg.domain_rand.kd_range[0] +
-                                self.cfg.domain_rand.kd_range[1]) / 2  # mean value
-
-    def post_physics_step(self):
-        """ check terminations, compute observations and rewards
-            calls self._post_physics_step_callback() for common computations 
-            calls self.simulator.draw_debug_vis() if needed
-        """
-        self.episode_length_buf += 1
-        self.common_step_counter += 1
-
-        self.simulator.post_physics_step()
-        self._post_physics_step_callback()
-
-        # compute observations, rewards, resets, ...
-        self.check_termination()
-        self.compute_reward()
-        
-        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
-        self.reset_idx(env_ids)
-        self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
-
-        self.llast_actions[:] = self.last_actions[:]
-        self.last_actions[:] = self.actions[:]
-        self.simulator.last_dof_vel[:] = self.simulator.dof_vel[:]
-        
-        if self.debug:
-            self.simulator.draw_debug_vis()
-    
-    def _post_physics_step_callback(self):
-        """ Callback called before computing terminations, rewards, and observations
-            Default behaviour: Compute ang vel command based on target and heading, compute measured terrain heights and randomly push robots
-        """
-        #
-        env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt) == 0).nonzero(as_tuple=False).flatten()
-        self._resample_commands(env_ids)
-        if self.cfg.commands.heading_command:
-            forward = quat_apply(self.simulator.base_quat, self.forward_vec)
-            heading = torch.atan2(forward[:, 1], forward[:, 0])
-            self.commands[:, 2] = torch.clip(
-                0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
-
-        if self.cfg.terrain.measure_heights:
-            self.simulator.get_heights()
-            if self.cfg.terrain.obtain_terrain_info_around_feet:
-                self.simulator.calc_terrain_info_around_feet()
-        if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
-            self.simulator.push_robots()
     
     def _get_noise_scale_vec(self):
         """ Sets a vector used to scale the noise added to the observations.
@@ -312,8 +144,6 @@ class Go2CTS(LeggedRobot):
         noise_vec[21:33] = noise_scales.dof_vel * \
             noise_level * self.obs_scales.dof_vel
         noise_vec[33:45] = 0.  # previous actions
-        # if self.cfg.terrain.measure_heights:
-        #     noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
         return noise_vec
     
     def _reward_feet_air_time(self):

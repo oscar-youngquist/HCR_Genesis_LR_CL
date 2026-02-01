@@ -25,7 +25,14 @@ class LeggedRobotTS(LeggedRobot):
             heights = torch.clip(self.simulator.base_pos[:, 2].unsqueeze(
                 1) - 0.5 - self.simulator.measured_heights, -1, 1.) * self.obs_scales.height_measurements
             critic_obs = torch.cat((critic_obs, heights), dim=-1)
-
+        
+        self.critic_obs_deque.append(critic_obs)
+        self.critic_obs_buf = torch.cat(
+            [self.critic_obs_deque[i]
+                for i in range(self.critic_obs_deque.maxlen)],
+            dim=-1,
+        )
+        
         # add noise if needed
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - \
@@ -107,11 +114,6 @@ class LeggedRobotTS(LeggedRobot):
                 )
             )
         # critic observation buffer
-        self.critic_obs_buf = torch.zeros(
-            (self.num_envs, self.cfg.env.num_critic_obs),
-            dtype=torch.float,
-            device=self.device,
-        )
         self.critic_obs_deque = deque(maxlen=self.cfg.env.c_frame_stack)
         for _ in range(self.cfg.env.c_frame_stack):
             self.critic_obs_deque.append(
