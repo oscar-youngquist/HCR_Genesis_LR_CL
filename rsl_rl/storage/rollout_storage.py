@@ -50,7 +50,8 @@ class RolloutStorage:
         def clear(self):
             self.__init__()
 
-    def __init__(self, num_envs, num_transitions_per_env, obs_shape, privileged_obs_shape, actions_shape, device='cpu'):
+    def __init__(self, num_envs, num_transitions_per_env, obs_shape, 
+                 privileged_obs_shape, actions_shape, device='cpu'):
 
         self.device = device
 

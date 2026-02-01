@@ -9,7 +9,10 @@ class LeggedRobotCfg(BaseConfig):
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         debug = False # if debugging, visualize contacts, etc.
+        debug_draw_height_points = False
+        debug_draw_height_points_around_feet = False
         env_spacing = 1.0
+        fail_to_terminal_time_s = 0.5 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
     class terrain:
         mesh_type = 'plane' # "heightfield" # none, plane, heightfield
@@ -22,6 +25,10 @@ class LeggedRobotCfg(BaseConfig):
         dynamic_friction = 1.0
         restitution = 0.
         # rough terrain only:
+        # obtain terrain height information around feet (default: 9 points around feet), measure_
+        # x  x   x
+        # x F(x) x
+        # x  x   x (x: height point, F: foot position)
         obtain_terrain_info_around_feet = False
         measure_heights = False
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
@@ -31,6 +38,7 @@ class LeggedRobotCfg(BaseConfig):
         max_init_terrain_level = 1 # starting curriculum state
         terrain_length = 6.0
         terrain_width = 6.0
+        platform_size = 3.0
         num_rows = 4  # number of terrain rows (levels)
         num_cols = 4  # number of terrain cols (types)
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
@@ -38,31 +46,21 @@ class LeggedRobotCfg(BaseConfig):
         # trimesh only:
         slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
 
-    class commands:
-        curriculum = False
-        max_curriculum = 1.
-        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10. # time before command are changed[s]
-        heading_command = True # if true: compute ang vel command from heading error
-        curriculum_threshold = 0.8 # threshold for curriculum learning, if the tracking reward is above this threshold, increase the command range
-        class ranges:
-            lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
-            ang_vel_yaw = [-1, 1]    # min max [rad/s]
-            heading = [-3.14, 3.14]
-
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
-        rot_gs = [1.0, 0.0, 0.0, 0.0]  # w,x,y,z [quat]
-        rot_gym = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym and genesis
+        # [Convention] When calling reset_root_states() of simulator, the input quaternion is in gym format [x,y,z,w]
+        #  simulators will convert it to their own format if needed.
+        rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym(xyzw) and genesis(wxyz)
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
         # initial state randomization
-        base_ang_random_scale = 0.
+        roll_random_scale = 0.0
+        pitch_random_scale = 0.0
+        yaw_random_scale = 0.0
         default_joint_angles = { # target angles when action = 0.0
             "joint_a": 0., 
             "joint_b": 0.}
-
+    
     class control:
         control_type = 'P' # P: position, V: velocity, T: torques
         # PD Drive parameters:
@@ -73,7 +71,7 @@ class LeggedRobotCfg(BaseConfig):
         dt =  0.02 # control frequency 50Hz
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
-        
+    
     class asset:
         # Common
         name = None
@@ -93,7 +91,7 @@ class LeggedRobotCfg(BaseConfig):
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         default_dof_drive_mode = 3   # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions_gym = 0      # 1 to disable, 0 to enable...bitwise filter
-        replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
+        replace_cylinder_with_capsule = False # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
         density = 0.001
         angular_damping = 0.
@@ -102,30 +100,6 @@ class LeggedRobotCfg(BaseConfig):
         max_linear_velocity = 1000.
         armature = 0.
         thickness = 0.01
-        
-    class domain_rand:
-        randomize_friction = True
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = True
-        added_mass_range = [-1., 1.]
-        push_robots = True
-        push_interval_s = 15
-        max_push_vel_xy = 1.
-        randomize_com_displacement = True
-        com_pos_x_range = [-0.01, 0.01]
-        com_pos_y_range = [-0.01, 0.01]
-        com_pos_z_range = [-0.01, 0.01]
-        randomize_ctrl_delay = False
-        ctrl_delay_step_range = [0, 1]
-        randomize_joint_armature = False
-        joint_armature_range = [0.0, 0.05]  # [N*m*s/rad]
-        randomize_joint_friction = False
-        joint_friction_range = [0.0, 0.1]
-        randomize_joint_damping = False
-        joint_damping_range = [0.0, 1.0]
-        randomize_pd_gain = False
-        kp_range = [0.8, 1.2]
-        kd_range = [0.8, 1.2]
 
     class rewards:
         class scales:
@@ -143,7 +117,7 @@ class LeggedRobotCfg(BaseConfig):
             collision = 0 # -1.
             feet_stumble = -0.0 
             action_rate = 0 # -0.01
-            stand_still = -0.
+            dof_pos_stand_still = -0.
         
         only_positive_rewards = True
         tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
@@ -156,6 +130,46 @@ class LeggedRobotCfg(BaseConfig):
         foot_clearance_tracking_sigma = 0.01
         # termination conditions
         max_projected_gravity = -0.1
+    
+    class commands:
+        curriculum = False
+        max_curriculum = 1.
+        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        resampling_time = 10. # time before command are changed[s]
+        heading_command = True # if true: compute ang vel command from heading error
+        curriculum_threshold = 0.8 # threshold for curriculum learning, if the tracking reward is above this threshold, increase the command range
+        class ranges:
+            lin_vel_x = [-1.0, 1.0] # min max [m/s]
+            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
+            ang_vel_yaw = [-1, 1]    # min max [rad/s]
+            heading = [-3.14, 3.14]
+    
+    class domain_rand:
+        randomize_friction = True
+        friction_range = [0.5, 1.25]
+        randomize_base_mass = True
+        added_mass_range = [-1., 1.]
+        push_robots = True
+        push_interval_s = 15
+        max_push_vel_xy = 1.
+        randomize_com_displacement = True
+        com_pos_x_range = [-0.01, 0.01]
+        com_pos_y_range = [-0.01, 0.01]
+        com_pos_z_range = [-0.01, 0.01]
+        randomize_ctrl_delay = False
+        ctrl_delay_step_range = [0, 1]
+        randomize_pd_gain = False
+        kp_range = [0.8, 1.2]
+        kd_range = [0.8, 1.2]
+        # Randomizing joint armature/friction/damping in Genesis require batching dofs/links info, 
+        # which will slow the simulation greatly.
+        # It is recommended to keep them false. If needed, please use it in IsaacGym only.
+        randomize_joint_armature = False
+        joint_armature_range = [0.0, 0.05]  # [N*m*s/rad]
+        randomize_joint_friction = False
+        joint_friction_range = [0.0, 0.1]
+        randomize_joint_damping = False
+        joint_damping_range = [0.0, 1.0]
 
     class normalization:
         class obs_scales:
@@ -177,14 +191,30 @@ class LeggedRobotCfg(BaseConfig):
             ang_vel = 0.2
             gravity = 0.05
             height_measurements = 0.1
-
+    
+    class constraints:
+        class limits:
+            pass
+        
     # viewer camera:
     class viewer:
         ref_env = 0
         pos = [2, 2, 2]       # [m]
         lookat = [0., 0, 1.]  # [m]
-        rendered_envs_idx = [i for i in range(5)]  # number of environments to be rendered
-        add_camera = False
+        rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
+    
+    class sensor:
+        add_depth = False
+        class depth_camera_config:
+            near_clip = 0.1
+            far_clip = 10.0
+            near_plane = 0.1
+            far_plane = 10.0
+            resolution = (80, 60)
+            fov_horizontal = 75
+            pos = (0.3, 0.0, 0.1)
+            euler = (0.0, 0.0, 0.0)
+            decimation = 5
 
     class sim:
         # Common
@@ -240,6 +270,11 @@ class LeggedRobotCfgPPO(BaseConfig):
         lam = 0.95
         desired_kl = 0.01
         max_grad_norm = 1.
+        
+        # Whether to use SPO(Simple Policy Optimization), refer to refer to https://arxiv.org/abs/2401.16025
+        # SPO may collapse with default param settings for PPO, especially with high learning rate
+        # learning_rate=2.5e-4, schedule='fixed' are validated
+        use_spo = False 
 
     class runner:
         policy_class_name = 'ActorCritic'
@@ -248,6 +283,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         max_iterations = 1500 # number of policy updates
 
         # logging
+        sync_wandb = False  # whether to sync log to wandb
         save_interval = 50 # check for potential saves every this many iterations
         experiment_name = 'test'
         run_name = ''

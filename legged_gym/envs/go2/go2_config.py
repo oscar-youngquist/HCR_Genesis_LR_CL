@@ -1,3 +1,4 @@
+from legged_gym import *
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
 class GO2Cfg( LeggedRobotCfg ):
@@ -119,22 +120,14 @@ class GO2Cfg( LeggedRobotCfg ):
         com_pos_z_range = [-0.01, 0.01]
 
 class GO2CfgPPO( LeggedRobotCfgPPO ):
-    class policy (LeggedRobotCfgPPO.policy ):
-        init_noise_std = 1.0
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-        # only for 'ActorCriticRecurrent':
-        # rnn_type = 'lstm'
-        # rnn_hidden_size = 512
-        # rnn_num_layers = 1
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
-        entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):
-        policy_class_name = 'ActorCritic'
-        run_name = 'with_lin'
+        run_name = 'simple_rl'
+        if SIMULATOR == "genesis":
+            run_name += '_genesis'
+        elif SIMULATOR == "isaacgym":
+            run_name += '_isaacgym'
         experiment_name = 'go2'
         save_interval = 200
-        load_run = "Sep12_17-27-42_without_lin"
+        load_run = "Jan05_09-43-56_simple_rl_genesis"
         checkpoint = -1
-        max_iterations = 1400
+        max_iterations = 1500

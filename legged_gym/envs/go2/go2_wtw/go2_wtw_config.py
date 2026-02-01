@@ -1,8 +1,6 @@
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-
 class GO2WTWCfg(LeggedRobotCfg):
-
     class env(LeggedRobotCfg.env):
         num_envs = 4096
         num_actions = 12
@@ -11,7 +9,7 @@ class GO2WTWCfg(LeggedRobotCfg):
         c_frame_stack = 5  # critic frame stack
         num_single_obs = 61
         num_observations = int(num_single_obs * frame_stack)
-        single_num_privileged_obs = num_single_obs + 41
+        single_num_privileged_obs = num_single_obs + 38
         num_privileged_obs = int(c_frame_stack * single_num_privileged_obs)
         env_spacing = 1.0
 
@@ -145,16 +143,12 @@ class GO2WTWCfg(LeggedRobotCfg):
         push_interval_s = 15
         max_push_vel_xy = 1.0
         randomize_com_displacement = enable
-        com_displacement_range = [-0.03, 0.03]
+        com_pos_x_range = [-0.03, 0.03]
+        com_pos_y_range = [-0.03, 0.03]
+        com_pos_z_range = [-0.03, 0.03]
         randomize_pd_gain = enable
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
-        randomize_joint_armature = enable
-        joint_armature_range = [0.015, 0.025]  # [N*m*s/rad]
-        randomize_joint_stiffness = enable
-        joint_stiffness_range = [0.01, 0.02]
-        randomize_joint_damping = enable
-        joint_damping_range = [0.25, 0.3]
         randomize_ctrl_delay = False
         ctrl_delay_step_range = [0, 1]
     
@@ -168,15 +162,9 @@ class GO2WTWCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
 class GO2WTWCfgPPO(LeggedRobotCfgPPO):
-    seed = 1
-    runner_class_name = "OnPolicyRunner"
-
-    class algorithm(LeggedRobotCfgPPO.algorithm):
-        entropy_coef = 0.01
-
     class runner(LeggedRobotCfgPPO.runner):
-        run_name = 'step_gait'
-        experiment_name = 'go2_wtw'
+        run_name = 'wtw_gym'
+        experiment_name = 'go2'
         save_interval = 500
         load_run = "Sep19_11-01-20_step_gait"
         checkpoint = -1

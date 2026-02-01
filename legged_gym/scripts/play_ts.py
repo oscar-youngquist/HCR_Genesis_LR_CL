@@ -2,11 +2,10 @@ from legged_gym import *
 import os
 
 from legged_gym.envs import *
-from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
+from legged_gym.utils import  get_args, task_registry, Logger, PolicyExporterTS
 
 import numpy as np
 import torch
-
 
 def play(args):
     if SIMULATOR == "genesis":
@@ -25,7 +24,7 @@ def play(args):
     
     # stairs
     env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-                                      "step_width": 0.31, "step_height": -0.13, "platform_size": 3.0}
+                                      "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
     # single stair
     # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
     #                                   "step_width": 1.0, "step_height": -0.05, "platform_size": 3.0}
@@ -40,8 +39,9 @@ def play(args):
     #                                   "num_rects": 20,
     #                                   "platform_size": 3.0}
     
-    env_cfg.asset.fix_base_link = False
     env_cfg.env.debug = True
+    env_cfg.env.debug_draw_height_points = False
+    env_cfg.env.debug_draw_height_points_around_feet = False
     # velocity range
     env_cfg.commands.ranges.lin_vel_x = [0.5, 0.5]
     env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
@@ -57,11 +57,12 @@ def play(args):
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
     policy = ppo_runner.get_inference_policy(device=env.device)
     
-    # export policy as a jit module (used to run it from C++)
+    # export policy as a jit module
     if EXPORT_POLICY:
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, train_cfg.runner.load_run, 'exported')
-        export_policy_as_jit(ppo_runner.alg.actor_critic, path, train_cfg.runner.load_run, export_type="ts")
-        print('Exported policy as jit script to: ', path)
+        exporter = PolicyExporterTS(ppo_runner.alg.actor_critic)
+        exporter.export(path, train_cfg.runner.load_run)
+        print('Exported policy (python) as jit script to: ', path)
 
     logger = Logger(env.dt)
     robot_index = 0 # which robot is used for logging
@@ -78,6 +79,7 @@ def play(args):
         # print(f"base height: {env.simulator.base_pos[robot_index,2].item():.3f} m")
         # print(f"measured_heights: {env.simulator.measured_heights[robot_index].cpu().numpy()}")
         # print(f"height_around_feet: {env.simulator.height_around_feet[robot_index].cpu().numpy()}")
+        # print(f"base height above ground: {torch.mean(env.simulator.base_pos[:,2].unsqueeze(1) - env.simulator.measured_heights[:, :], dim=1)[robot_index].item()} m")
         # print("------------")
         
         

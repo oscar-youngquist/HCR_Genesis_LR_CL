@@ -32,10 +32,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from rsl_rl.algorithms.base_algorithm import BaseAlgorithm
 from rsl_rl.modules import ActorCritic
 from rsl_rl.storage import RolloutStorage
 
-class PPO:
+class PPO(BaseAlgorithm):
     actor_critic: ActorCritic
     def __init__(self,
                  actor_critic,
@@ -51,6 +52,7 @@ class PPO:
                  use_clipped_value_loss=True,
                  schedule="fixed",
                  desired_kl=0.01,
+                 use_spo=False,
                  device='cpu',
                  ):
 
@@ -59,6 +61,7 @@ class PPO:
         self.desired_kl = desired_kl
         self.schedule = schedule
         self.learning_rate = learning_rate
+        self.use_spo = use_spo # whether to use SPO(Simple Policy Optimization), refer to https://arxiv.org/abs/2401.16025
 
         # PPO components
         self.actor_critic = actor_critic
@@ -114,70 +117,28 @@ class PPO:
         self.actor_critic.reset(dones)
     
     def compute_returns(self, last_critic_obs):
+        # 'last' here means 'final' in the rollout storage
         last_values= self.actor_critic.evaluate(last_critic_obs).detach()
         self.storage.compute_returns(last_values, self.gamma, self.lam)
 
     def update(self):
         mean_value_loss = 0
         mean_surrogate_loss = 0
-        if self.actor_critic.is_recurrent:
-            generator = self.storage.reccurent_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
-        else:
-            generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
+        generator = self._get_data_generator()
         for obs_batch, critic_obs_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, \
             old_mu_batch, old_sigma_batch, hid_states_batch, masks_batch in generator:
 
+            loss, surrogate_loss, value_loss = self._compute_rl_loss(obs_batch, critic_obs_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, 
+                                                                  old_mu_batch, old_sigma_batch, hid_states_batch, masks_batch)
 
-                self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
-                actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
-                value_batch = self.actor_critic.evaluate(critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
-                mu_batch = self.actor_critic.action_mean
-                sigma_batch = self.actor_critic.action_std
-                entropy_batch = self.actor_critic.entropy
+            # Gradient step
+            self.optimizer.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
+            self.optimizer.step()
 
-                # KL
-                if self.desired_kl != None and self.schedule == 'adaptive':
-                    with torch.inference_mode():
-                        kl = torch.sum(
-                            torch.log(sigma_batch / old_sigma_batch + 1.e-5) + (torch.square(old_sigma_batch) + torch.square(old_mu_batch - mu_batch)) / (2.0 * torch.square(sigma_batch)) - 0.5, axis=-1)
-                        kl_mean = torch.mean(kl)
-
-                        if kl_mean > self.desired_kl * 2.0:
-                            self.learning_rate = max(1e-5, self.learning_rate / 1.5)
-                        elif kl_mean < self.desired_kl / 2.0 and kl_mean > 0.0:
-                            self.learning_rate = min(1e-2, self.learning_rate * 1.5)
-                        
-                        for param_group in self.optimizer.param_groups:
-                            param_group['lr'] = self.learning_rate
-
-
-                # Surrogate loss
-                ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
-                surrogate = -torch.squeeze(advantages_batch) * ratio
-                surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(ratio, 1.0 - self.clip_param,
-                                                                                1.0 + self.clip_param)
-                surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
-
-                # Value function loss
-                if self.use_clipped_value_loss:
-                    value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(-self.clip_param,
-                                                                                                    self.clip_param)
-                    value_losses = (value_batch - returns_batch).pow(2)
-                    value_losses_clipped = (value_clipped - returns_batch).pow(2)
-                    value_loss = torch.max(value_losses, value_losses_clipped).mean()
-                else:
-                    value_loss = (returns_batch - value_batch).pow(2).mean()
-
-                loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
-
-                # Gradient step
-                self.optimizer.zero_grad()
-                loss.backward()
-                nn.utils.clip_grad_norm_(self.actor_critic.parameters(), self.max_grad_norm)
-                self.optimizer.step()
-
-                mean_value_loss += value_loss.item()
-                mean_surrogate_loss += surrogate_loss.item()
+            mean_value_loss += value_loss.item()
+            mean_surrogate_loss += surrogate_loss.item()
 
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
@@ -185,3 +146,73 @@ class PPO:
         self.storage.clear()
 
         return mean_value_loss, mean_surrogate_loss
+    
+    def _get_data_generator(self):
+        if self.actor_critic.is_recurrent:
+            generator = self.storage.reccurent_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
+        else:
+            generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)
+        return generator
+    
+    def _compute_rl_loss(self, obs_batch, critic_obs_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, 
+                         old_mu_batch, old_sigma_batch, hid_states_batch, masks_batch):
+        
+        self.actor_critic.act(obs_batch, masks=masks_batch, hidden_states=hid_states_batch[0])
+        actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
+        value_batch = self.actor_critic.evaluate(critic_obs_batch, masks=masks_batch, hidden_states=hid_states_batch[1])
+        mu_batch = self.actor_critic.action_mean
+        sigma_batch = self.actor_critic.action_std
+        entropy_batch = self.actor_critic.entropy
+
+        self._adjust_learning_rate(sigma_batch, old_sigma_batch, mu_batch, old_mu_batch)
+
+        # Surrogate loss
+        ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
+        surrogate_loss = self._compute_surrogate_loss(ratio, advantages_batch)
+
+        # Value function loss
+        value_loss = self._compute_value_function_loss(value_batch, returns_batch, target_values_batch)
+
+        loss = surrogate_loss + self.value_loss_coef * value_loss - self.entropy_coef * entropy_batch.mean()
+        
+        return loss, surrogate_loss, value_loss
+    
+    def _compute_surrogate_loss(self, ratio, advantages):
+        if self.use_spo: # simple policy optimization
+            surrogate_loss = -(
+                torch.squeeze(advantages) * ratio -
+                torch.abs(torch.squeeze(advantages)) * torch.pow(ratio - 1.0, 2) / (2.0 * self.clip_param)
+            ).mean()
+        else: # proximal policy optimization
+            surrogate = -torch.squeeze(advantages) * ratio
+            surrogate_clipped = -torch.squeeze(advantages) * torch.clamp(ratio, 1.0 - self.clip_param,
+                                                                        1.0 + self.clip_param)
+            surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
+        return surrogate_loss
+    
+    def _adjust_learning_rate(self, sigma_batch, old_sigma_batch, mu_batch, old_mu_batch):
+        if self.desired_kl != None and self.schedule == 'adaptive':
+            with torch.inference_mode():
+                kl = torch.sum(
+                    torch.log(sigma_batch / old_sigma_batch + 1.e-5) + (torch.square(old_sigma_batch) + torch.square(old_mu_batch - mu_batch)) / (2.0 * torch.square(sigma_batch)) - 0.5, axis=-1)
+                kl_mean = torch.mean(kl)
+
+                if kl_mean > self.desired_kl * 2.0:
+                    self.learning_rate = max(1e-5, self.learning_rate / 1.5)
+                elif kl_mean < self.desired_kl / 2.0 and kl_mean > 0.0:
+                    self.learning_rate = min(1e-2, self.learning_rate * 1.5)
+                        
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = self.learning_rate
+    
+    def _compute_value_function_loss(self, value_batch, returns_batch, target_values_batch):
+        if self.use_clipped_value_loss:
+            value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(-self.clip_param,
+                                                                                            self.clip_param)
+            value_losses = (value_batch - returns_batch).pow(2)
+            value_losses_clipped = (value_clipped - returns_batch).pow(2)
+            value_loss = torch.max(
+                value_losses, value_losses_clipped).mean()
+        else:
+            value_loss = (returns_batch - value_batch).pow(2).mean()
+        return value_loss

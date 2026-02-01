@@ -2,7 +2,7 @@ from legged_gym import *
 import os
 
 from legged_gym.envs import *
-from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
+from legged_gym.utils import  get_args, PolicyExporterEE, task_registry, Logger
 
 import numpy as np
 import torch
@@ -20,20 +20,25 @@ def play(args):
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     env_cfg.terrain.num_rows = 2
     env_cfg.terrain.num_cols = 2
+    env_cfg.terrain.border_size = 5.0
     env_cfg.noise.add_noise = False
     env_cfg.terrain.curriculum = False
     env_cfg.terrain.selected = True
     env_cfg.env.debug = True
+    env_cfg.env.debug_draw_height_points = True
+    env_cfg.env.debug_draw_height_points_around_feet = False
+    env_cfg.init_state.sit_init_percent = 1.0
+    env_cfg.asset.fix_base_link = False
     
     # stairs
-    # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-    #                                   "step_width": 0.31, "step_height": -0.10, "platform_size": 3.0}
+    env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
+                                      "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
     # single stair
     # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
     #                                   "step_width": 1.0, "step_height": -0.05, "platform_size": 3.0}
     # slope
-    env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
-                                      "slope": -0.4, "platform_size": 3.0}
+    # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
+    #                                   "slope": -0.4, "platform_size": 3.0}
     # # discrete obstacles
     # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
     #                                   "max_height": 0.1,
@@ -43,7 +48,7 @@ def play(args):
     #                                   "platform_size": 3.0}
     
     # velocity range
-    env_cfg.commands.ranges.lin_vel_x = [1.0, 1.0]
+    env_cfg.commands.ranges.lin_vel_x = [0.5, 0.5]
     env_cfg.commands.ranges.lin_vel_y = [0., 0.]
     env_cfg.commands.ranges.ang_vel_yaw = [0., 0.]
     env_cfg.commands.ranges.heading = [0, 0]
@@ -62,9 +67,11 @@ def play(args):
     if EXPORT_POLICY:
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 
             train_cfg.runner.load_run, 'exported')
-        export_policy_as_jit(ppo_runner.alg.actor_critic, path,
-                             train_cfg.runner.load_run, export_type="ee")
+        exporter = PolicyExporterEE(ppo_runner.alg.actor_critic)
+        exporter.export(path, train_cfg.runner.load_run)
         print('Exported policy as jit script to: ', path)
+        if EXPORT_ONNX:
+            exporter.export_onnx(path, env_cfg, train_cfg.runner.load_run)
 
     logger = Logger(env.dt)
     robot_index = 0 # which robot is used for logging
@@ -75,6 +82,7 @@ def play(args):
     for i in range(10*int(env.max_episode_length)):
         estimator_estimation = estimator(estimator_features.detach())
         actions = policy(estimator_features.detach(), estimator_estimation.detach())
+        # print(f"max action: {torch.max(actions).item():.3f}")
         estimator_features, estimator_labels, _, rews, dones, infos = env.step(actions.detach())
         
         # print debug info
@@ -115,6 +123,7 @@ def play(args):
             logger.print_rewards()
 
 if __name__ == '__main__':
-    EXPORT_POLICY = True
     args = get_args()
+    EXPORT_POLICY = args.export_torch
+    EXPORT_ONNX = args.export_onnx
     play(args)

@@ -10,7 +10,6 @@ class BipedalWalkerCfg( LeggedRobotCfg ):
     
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane' # "heightfield" # none, plane, heightfield or trimesh
-        restitution = 0.
         
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 1.08] # x,y,z [m]
@@ -54,11 +53,10 @@ class BipedalWalkerCfg( LeggedRobotCfg ):
             'hip_joint_transversal_left',
             'knee_joint_left',
             'ankle_joint_left']
-        foot_name = ["foot"]
+        foot_name = "foot"
         penalize_contacts_on = []
         terminate_after_contacts_on = ["torso", 'thigh','shank']
         links_to_keep = []
-        self_collisions = True
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
@@ -99,7 +97,6 @@ class BipedalWalkerCfg( LeggedRobotCfg ):
             heading = [-3.14, 3.14]
 
 class BipedalWalkerCfgPPO( LeggedRobotCfgPPO ):
-    runner_class_name = "OnPolicyRunner"
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):

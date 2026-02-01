@@ -45,9 +45,31 @@ from legged_gym.envs.go2.go2_ee.go2_ee_config import Go2EECfg, Go2EECfgPPO
 # go2_cts(concurrent teacher-student)
 from legged_gym.envs.go2.go2_cts.go2_cts import Go2CTS
 from legged_gym.envs.go2.go2_cts.go2_cts_config import Go2CTSCfg, Go2CTSCfgPPO
+# go2_dreamwaq
+from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq import Go2Dreamwaq
+from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq_config import Go2DreamwaqCfg, Go2DreamwaqCfgPPO
+# go2_cat(constraint-as-termination)
+from legged_gym.envs.go2.go2_cat.go2_cat import Go2CaT
+from legged_gym.envs.go2.go2_cat.go2_cat_config import Go2CaTCfg, Go2CaTCfgPPO
+# go2_ts_depth
+from legged_gym.envs.go2.go2_ts_depth.go2_ts_depth import Go2TSDepth
+from legged_gym.envs.go2.go2_ts_depth.go2_ts_depth_config import Go2TSDepthCfg, Go2TSDepthCfgPPO
+# go2_nav
+from legged_gym.envs.go2.go2_nav.go2_nav import GO2Nav
+from legged_gym.envs.go2.go2_nav.go2_nav_config import GO2NavCfg, GO2NavCfgPPO
+
+# tron1_pf
+from legged_gym.envs.tron1_pf.tron1_pf import TRON1PF
+from legged_gym.envs.tron1_pf.tron1_pf_config import TRON1PFCfg, TRON1PFCfgPPO
+# tron_pf_ee
+from legged_gym.envs.tron1_pf.tron1_pf_ee.tron1_pf_ee import TRON1PF_EE
+from legged_gym.envs.tron1_pf.tron1_pf_ee.tron1_pf_ee_config import TRON1PF_EECfg, TRON1PF_EECfgPPO
+# tron1_sf
+from legged_gym.envs.tron1_sf.tron1_sf import TRON1SF
+from legged_gym.envs.tron1_sf.tron1_sf_config import TRON1SFCfg, TRON1SFCfgPPO
 # bipedal_walker
-# from legged_gym.envs.bipedal_walker.bipedal_walker_config import BipedalWalkerCfg, BipedalWalkerCfgPPO
-# from legged_gym.envs.bipedal_walker.bipedal_walker import BipedalWalker
+from legged_gym.envs.bipedal_walker.bipedal_walker_config import BipedalWalkerCfg, BipedalWalkerCfgPPO
+from legged_gym.envs.bipedal_walker.bipedal_walker import BipedalWalker
 # # go2_sysid
 # from legged_gym.envs.go2.go2_sysid.go2_sysid import GO2SysID
 # from legged_gym.envs.go2.go2_sysid.go2_sysid_config import GO2SysIDCfg
@@ -60,5 +82,12 @@ task_registry.register( "go2_wtw", GO2WTW, GO2WTWCfg(), GO2WTWCfgPPO())
 task_registry.register( "go2_ts", Go2TS, Go2TSCfg(), Go2TSCfgPPO())
 task_registry.register( "go2_ee", Go2EE, Go2EECfg(), Go2EECfgPPO())
 task_registry.register( "go2_cts", Go2CTS, Go2CTSCfg(), Go2CTSCfgPPO())
+task_registry.register( "go2_dreamwaq", Go2Dreamwaq, Go2DreamwaqCfg(), Go2DreamwaqCfgPPO())
+task_registry.register( "go2_cat", Go2CaT, Go2CaTCfg(), Go2CaTCfgPPO())
+# task_registry.register( "go2_ts_depth", Go2TSDepth, Go2TSDepthCfg(), Go2TSDepthCfgPPO())
+task_registry.register( "go2_nav", GO2Nav, GO2NavCfg(), GO2NavCfgPPO())
+task_registry.register( "tron1_pf", TRON1PF, TRON1PFCfg(), TRON1PFCfgPPO())
+task_registry.register( "tron1_pf_ee", TRON1PF_EE, TRON1PF_EECfg(), TRON1PF_EECfgPPO())
+task_registry.register( "tron1_sf", TRON1SF, TRON1SFCfg(), TRON1SFCfgPPO())
 # task_registry.register( "go2_sysid", GO2SysID, GO2SysIDCfg(), GO2CfgPPO())
 # task_registry.register( "bipedal_walker", BipedalWalker, BipedalWalkerCfg(), BipedalWalkerCfgPPO())
