@@ -93,20 +93,21 @@ class Go2CTSCfg( LeggedRobotCTSCfg ):
   
     class rewards( LeggedRobotCTSCfg.rewards ):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.34
+        base_height_target = 0.36
         foot_clearance_target = 0.09 # desired foot clearance above ground [m]
         foot_height_offset = 0.022   # height of the foot coordinate origin above ground [m]
         foot_clearance_tracking_sigma = 0.01
         only_positive_rewards = True
         class scales( LeggedRobotCTSCfg.rewards.scales ):
             # limitation
-            dof_pos_limits = -5.0
+            dof_pos_limits = -1.0
             collision = -1.0
             # command tracking
             tracking_lin_vel = 1.0
             tracking_ang_vel = 0.5
             # smooth
             lin_vel_z = -2.0
+            base_height = -1.0
             ang_vel_xy = -0.05
             dof_power = -2.e-4
             dof_acc = -2.e-7
@@ -114,8 +115,8 @@ class Go2CTSCfg( LeggedRobotCTSCfg ):
             action_smoothness = -0.01
             # gait
             feet_air_time = 1.0
-            foot_clearance = 0.2
-            feet_contact_stand_still = 0.5
+            foot_clearance = 0.4
+            hip_pos = -0.1
 
     class commands( LeggedRobotCTSCfg.commands ):
         curriculum = True
@@ -160,9 +161,9 @@ class Go2CTSCfgPPO( LeggedRobotCTSCfgPPO ):
         encoder_lr = 5.e-4
         num_encoder_epochs = 1
     class runner( LeggedRobotCTSCfgPPO.runner ):
-        run_name = 'gs_cts'
+        run_name = 'cts'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = "Oct17_11-08-37_gs_cts"
+        load_run = "Feb02_19-37-20_cts"
         checkpoint = -1
-        max_iterations = 4000
+        max_iterations = 5000

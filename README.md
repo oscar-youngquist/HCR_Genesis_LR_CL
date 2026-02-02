@@ -1,4 +1,4 @@
-# 🦿 Legged Robotics in Genesis
+# 🦿 LeggedGym-Ex
 
 A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for training legged robots in [Genesis](https://github.com/Genesis-Embodied-AI/Genesis/tree/main) and [IsaacGym](https://developer.nvidia.com/isaac-gym)
 

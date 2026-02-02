@@ -132,10 +132,8 @@ class ActorCriticEE(nn.Module):
         value = self.critic(critic_observations)
         return value
     
-    def est_inference(self, estimator_features):
-        return self.estimator(estimator_features)
-
-    def act_inference(self, estimator_features, estimator_output):
+    def act_inference(self, estimator_features):
+        estimator_output = self.estimator(estimator_features)
         actions_mean = self.actor(torch.cat(
             (
             estimator_features, 

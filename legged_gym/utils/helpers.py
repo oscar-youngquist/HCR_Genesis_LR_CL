@@ -136,7 +136,6 @@ def get_args():
 
 def export_policy_as_jit(actor_critic, path, prefix=None):
     if hasattr(actor_critic, 'memory_a'):
-        # assumes LSTM: TODO add GRU
         exporter = PolicyExporterLSTM(actor_critic)
         exporter.export(path)
     else: 

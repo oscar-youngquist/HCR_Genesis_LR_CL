@@ -167,7 +167,7 @@ class Go2CTS(LeggedRobotCTS):
         foot_vel_xy_norm = torch.norm(self.simulator.feet_vel[:, :, :2], dim=-1)
         clearance_error = torch.sum(
             foot_vel_xy_norm * torch.square(
-                self.simulator.feet_pos[:, :, 2] - torch.mean(self.simulator.height_around_feet, dim=-1) -
+                self.simulator.feet_pos[:, :, 2] - torch.max(self.simulator.height_around_feet, dim=-1).values -
                 self.cfg.rewards.foot_clearance_target -
                 self.cfg.rewards.foot_height_offset
             ), dim=-1
