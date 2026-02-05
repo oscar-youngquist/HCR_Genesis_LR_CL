@@ -1,3 +1,4 @@
+import time
 from legged_gym import *
 if SIMULATOR == "genesis":
     # from genesis.engine.solvers.rigid.rigid_solver_decomp import RigidSolver
@@ -15,7 +16,6 @@ import os
 
 from legged_gym.utils.terrain import Terrain
 from legged_gym.utils.math_utils import *
-from legged_gym.utils.gs_utils import *
 
 """ ********** Base Simulator ********** """
 class Simulator:
@@ -353,6 +353,8 @@ class GenesisSimulator(Simulator):
     def post_physics_step(self):
         # prepare quantities
         self.base_pos[:] = self.robot.get_pos()
+        self._check_base_pos_out_of_bound()       # check if the pos of the robot is out of terrain bounds
+        self.base_pos[:] = self.robot.get_pos()
         self.base_quat_gs[:] = self.robot.get_quat()
         self.base_quat[:,-1] = self.robot.get_quat()[:,0]   # wxyz to xyzw
         self.base_quat[:,:3] = self.robot.get_quat()[:,1:4] # wxyz to xyzw
@@ -369,8 +371,6 @@ class GenesisSimulator(Simulator):
         if self.cfg.asset.obtain_link_contact_states:
             self.link_contact_states = 1. * (torch.norm(
                 self.link_contact_forces[:, self.contact_state_link_indices, :], dim=-1) > 1.)
-        
-        self._check_base_pos_out_of_bound()
     
     def update_depth_images(self):
         """ Renders the depth camera and retrieves the depth images
@@ -1099,6 +1099,8 @@ class IsaacGymSimulator(Simulator):
     
     def post_physics_step(self):
         self.gym.refresh_actor_root_state_tensor(self.sim)
+        self._check_base_pos_out_of_bound()
+        self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         # the wrapped tensor will be updated automatically once you call refresh_xxx_tensor
@@ -1117,8 +1119,6 @@ class IsaacGymSimulator(Simulator):
         if self.cfg.asset.obtain_link_contact_states:
             self.link_contact_states = 1. * (torch.norm(
                 self.link_contact_forces[:, self.contact_state_link_indices, :], dim=-1) > 1.)
-        
-        self._check_base_pos_out_of_bound()
     
     def _check_base_pos_out_of_bound(self):
         """ Check if the base position is out of the terrain bounds
@@ -1247,14 +1247,30 @@ class IsaacGymSimulator(Simulator):
             Default behaviour: draws height measurement points
         """
         # draw height lines
-        if not self.cfg.terrain.measure_heights:
-            return
+        # if not self.cfg.terrain.measure_heights:
+        #     return
         self.gym.clear_lines(self.viewer)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         if self.cfg.env.debug_draw_height_points:
             self.draw_height_points()
         if self.cfg.env.debug_draw_height_points_around_feet:
             self.draw_height_points_around_feet()
+    
+    def draw_debug_points_world(self, points, radius=0.02, color=(1, 0, 0)):
+        """ Draws debug points in world frame
+
+        Args:
+            points (torch.tensor): points to draw, shape: (num_envs, num_points, 3)
+            color (tuple, optional): RGB color of the points. Defaults to (1, 0, 0).
+        """
+        sphere_geom = gymutil.WireframeSphereGeometry(radius, 4, 4, None, color=color)
+        for i in range(self.num_envs):
+            for j in range(points.shape[1]):
+                x = points[i, j, 0].cpu().numpy()
+                y = points[i, j, 1].cpu().numpy()
+                z = points[i, j, 2].cpu().numpy()
+                sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+                gymutil.draw_lines(sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
     
     def draw_height_points(self):
         # draw height lines

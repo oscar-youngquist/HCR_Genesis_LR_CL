@@ -5,7 +5,6 @@ import torch
 from legged_gym.envs.base.legged_robot_ee import LeggedRobotEE
 from legged_gym.utils.math_utils import *
 from legged_gym.utils.helpers import class_to_dict
-from legged_gym.utils.gs_utils import *
 from collections import deque
 from scipy.stats import vonmises
 

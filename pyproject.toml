@@ -1,5 +1,5 @@
 [project]
-name = "genesis_lr"
+name = "LeggedGym-Ex"
 version = "0.2.1"
 requires-python = ">=3.8"
 dependencies = [
@@ -12,7 +12,8 @@ dependencies = [
                 'scipy',
                 'torch',
                 'torchvision',
-                'numpy'
+                'numpy',
+                'pygame'
 ]
 
 [project.optional-dependencies]

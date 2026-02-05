@@ -10,7 +10,6 @@ class GO2NavCfg( LeggedRobotNavCfg ):
         num_actions = 12
         env_spacing = 2.0
         episode_length_s = 8.0
-        fail_to_terminal_time_s = 0.1
 
     class terrain( LeggedRobotNavCfg.terrain ):
         if SIMULATOR == "genesis":

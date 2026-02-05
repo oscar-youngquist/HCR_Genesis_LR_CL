@@ -33,6 +33,5 @@ def train(args):
 if __name__ == '__main__':
     args = get_args()
     if args.debug:
-        args.offline = True
         args.num_envs = 1
     train(args)

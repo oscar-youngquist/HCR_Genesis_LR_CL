@@ -12,7 +12,7 @@ class LeggedRobotCfg(BaseConfig):
         debug_draw_height_points = False
         debug_draw_height_points_around_feet = False
         env_spacing = 1.0
-        fail_to_terminal_time_s = 0.5 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
+        fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
     class terrain:
         mesh_type = 'plane' # "heightfield" # none, plane, heightfield
@@ -129,7 +129,7 @@ class LeggedRobotCfg(BaseConfig):
         foot_height_offset = 0.0     # height of the foot coordinate origin above ground [m]
         foot_clearance_tracking_sigma = 0.01
         # termination conditions
-        max_projected_gravity = -0.1
+        max_projected_gravity = -0.1 # max allowed projected gravity in z axis
     
     class commands:
         curriculum = False

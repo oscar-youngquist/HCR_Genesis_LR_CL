@@ -261,7 +261,7 @@ class TRON1SF(LeggedRobot):
         first_contact = (self.feet_air_time > 0.) * contact_filt
         self.feet_air_time += self.dt
         rew_airTime = torch.sum((self.feet_air_time - 0.25) * first_contact, dim=1)  # reward only on first contact with the ground
-        rew_airTime *= torch.norm(self.commands[:, :3], dim=1) > 0.1  # no reward for zero command
+        rew_airTime *= torch.norm(self.commands[:, :2], dim=1) > 0.2  # no reward for zero command
         self.feet_air_time *= ~contact_filt
         return rew_airTime
     
@@ -273,38 +273,33 @@ class TRON1SF(LeggedRobot):
                          self.cfg.rewards.foot_distance_threshold - feet_xy_distance)
         
     def _reward_no_fly(self):
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.0
+        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
         single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact * (torch.norm(self.commands[:, :3], dim=1) > 0.1) # only activate when moving
-    
-    def _reward_full_contact_stand_still(self):
-        """Encourage all feet in contact when standing still
-        """
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.0
-        all_contact = torch.sum(1.*contacts, dim=1)==len(self.simulator.feet_indices)
-        return 1.*all_contact * (torch.norm(self.commands[:, :3], dim=1) < 0.1) # only activate when not moving
+        return 1.*single_contact * (torch.norm(self.commands[:, :2], dim=1) > 0.2) # only activate when moving
     
     def _reward_hip_pos_zero_command(self):
         """Penalize hip joint deviation from default position when no command is given
         """
         return torch.sum(torch.square(self.simulator.dof_pos[:, [1,5]] - 
-                                      self.simulator.default_dof_pos[:, [1,5]]), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+                                      self.simulator.default_dof_pos[:, [1,5]]), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.2)
     
     def _reward_keep_ankle_pitch_zero_in_air(self):
         """Reward keeping ankle pitch close to zero when in the air
         """
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.0
+        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
         ankle_pitch = torch.abs(self.simulator.dof_pos[:, 3]) * ~(contacts[:, 0]) + torch.abs(
             self.simulator.dof_pos[:, 7]) * ~contacts[:, 1]
         return torch.exp(-torch.abs(ankle_pitch) / 0.2)
     
-    def _reward_foot_flat(self):
-        """Encourage foot to be flat
+    def _reward_foot_flat_when_contact(self):
+        """Encourage foot to be flat when in contact with the ground
         """
+        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
         foot_quat = self.simulator.rigid_body_states[:, self.simulator.feet_indices, 3:7]
         # calculate world z axis in foot frame
         z_axis_world = torch.tensor([0., 0., 1.], device=self.device).repeat(foot_quat.shape[0], foot_quat.shape[1], 1)
         foot_z_axis = quat_rotate_inverse(foot_quat, z_axis_world)
         foot_tilt = torch.abs(foot_z_axis[:, :, 0]) + torch.abs(foot_z_axis[:, :, 1])  # x and y components
         rew_foot_flat = torch.exp(-foot_tilt / 0.1)
+        rew_foot_flat *= contacts.float()
         return torch.sum(rew_foot_flat, dim=1)

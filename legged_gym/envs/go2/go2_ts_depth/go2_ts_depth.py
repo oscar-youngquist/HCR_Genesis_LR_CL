@@ -5,7 +5,6 @@ import torch
 from legged_gym.envs.base.legged_robot import LeggedRobot
 from legged_gym.utils.math_utils import wrap_to_pi, quat_apply, torch_rand_float
 from legged_gym.utils.helpers import class_to_dict
-from legged_gym.utils.gs_utils import *
 from collections import deque
 
 class Go2TSDepth(LeggedRobot):

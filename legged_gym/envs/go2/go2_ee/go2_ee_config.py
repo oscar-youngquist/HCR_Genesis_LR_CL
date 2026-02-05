@@ -5,7 +5,7 @@ class Go2EECfg( LeggedRobotEECfg ):
     class env( LeggedRobotEECfg.env ):
         num_envs = 4096
         num_single_obs = 45
-        frame_stack = 10    # number of frames to stack for obs_history
+        frame_stack = 20    # number of frames to stack for obs_history
         num_estimator_features = int(num_single_obs * frame_stack)
         num_estimator_labels = 24
         c_frame_stack = 5
@@ -99,7 +99,7 @@ class Go2EECfg( LeggedRobotEECfg ):
         only_positive_rewards = True
         class scales( LeggedRobotEECfg.rewards.scales ):
             # limitation
-            dof_pos_limits = -5.0
+            dof_pos_limits = -2.0
             collision = -1.0
             # command tracking
             tracking_lin_vel = 1.0
@@ -114,8 +114,7 @@ class Go2EECfg( LeggedRobotEECfg ):
             # gait
             feet_air_time = 1.0
             foot_clearance = 0.2
-            hip_pos = -0.1
-            dof_pos_stand_still = -1.0
+            hip_pos = -0.05
             feet_contact_stand_still = 0.5
 
     class commands( LeggedRobotEECfg.commands ):
@@ -153,7 +152,6 @@ class Go2EECfg( LeggedRobotEECfg ):
         joint_damping_range = [0.25, 0.3]
 
 class Go2EECfgPPO( LeggedRobotEECfgPPO ):
-    seed = 1
     class policy( LeggedRobotEECfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
         estimator_hidden_dims = [256, 128]
@@ -167,6 +165,6 @@ class Go2EECfgPPO( LeggedRobotEECfgPPO ):
             run_name = 'gym_ee'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = "Dec17_14-18-58_gs_ee"
+        load_run = ""
         checkpoint = -1
-        max_iterations = 3000
+        max_iterations = 5000

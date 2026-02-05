@@ -162,6 +162,10 @@ class Go2CTSCfgPPO( LeggedRobotCTSCfgPPO ):
         num_encoder_epochs = 1
     class runner( LeggedRobotCTSCfgPPO.runner ):
         run_name = 'cts'
+        if SIMULATOR == "genesis":
+            run_name += "_genesis"
+        elif SIMULATOR == "isaacgym":
+            run_name += "_isaacgym"
         experiment_name = 'go2_rough'
         save_interval = 500
         load_run = "Feb02_19-37-20_cts"

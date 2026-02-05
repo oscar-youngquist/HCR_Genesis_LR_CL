@@ -9,7 +9,6 @@ import torch
 from legged_gym import LEGGED_GYM_ROOT_DIR
 from legged_gym.envs.base.legged_robot import LeggedRobot
 from legged_gym.utils.terrain import Terrain
-from legged_gym.utils.gs_utils import *
 from .go2_sysid_config import GO2SysIDCfg
 import pandas as pd
 from tqdm import tqdm

@@ -100,11 +100,26 @@ def get_load_path_ee(root, load_run=-1, checkpoint=-1):
     return actor_load_path, estimator_load_path
 
 def update_cfg_from_args(env_cfg, cfg_train, args):
-    # seed
+    """Override some configuration parameters from command line arguments
+       Called in task_registry.py/make_env()
+
+    Args:
+        env_cfg : environment configuration
+        cfg_train : training configuration
+        args : command line arguments
+
+    Returns:
+        env_cfg : updated environment configuration
+        cfg_train : updated training configuration
+    """
+    # environment parameters
     if env_cfg is not None:
         # num envs
         if args.num_envs is not None:
             env_cfg.env.num_envs = args.num_envs
+        if args.debug:
+            env_cfg.env.debug = args.debug
+    # training parameters
     if cfg_train is not None:
         # alg runner parameters
         if args.max_iterations is not None:
@@ -113,39 +128,84 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
             cfg_train.runner.resume = args.resume
         if args.sync_wandb:
             cfg_train.runner.sync_wandb = args.sync_wandb
+        if args.ckpt is not None:
+            cfg_train.runner.checkpoint = args.ckpt
+        if args.load_run is not None:
+            cfg_train.runner.load_run = args.load_run
 
     return env_cfg, cfg_train
 
 def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--task',           type=str, default='go2')
-    parser.add_argument('--headless',       action='store_true', default=False)  # enable visualization by default
-    parser.add_argument('-c', '--cpu',      action='store_true', default=False)  # use cuda by default
-    parser.add_argument('-B', '--num_envs', type=int, default=None)
-    parser.add_argument('--max_iterations', type=int, default=None)
-    parser.add_argument('--resume',         action='store_true', default=False)
-    parser.add_argument('-o', '--offline',  action='store_true', default=False)
-    parser.add_argument('--sync_wandb',     action='store_true', default=False)
-    parser.add_argument('--export_torch',   action='store_true', default=True)
-    parser.add_argument('--export_onnx',    action='store_true', default=False)
+    """Parse command line arguments
 
-    parser.add_argument('--debug',          action='store_true', default=False)
-    parser.add_argument('--ckpt',           type=int, default=1000)
+    Returns:
+        args: parsed command line arguments
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task',           type=str, default='go2', help="task name")
+    parser.add_argument('--headless',       action='store_true', default=False, help="enable visualization by default")
+    parser.add_argument('--cpu',            action='store_true', default=False, help="use CPU instead of CUDA")
+    parser.add_argument('--num_envs',       type=int, default=None, help="number of parallel environments")
+    parser.add_argument('--max_iterations', type=int, default=None, help="max number of training iterations")
+    parser.add_argument('--resume',         action='store_true', default=False, help="resume training from specified checkpoint")
+    parser.add_argument('--sync_wandb',     action='store_true', default=False, help="synchronize training log with wandb")
+    parser.add_argument('--export_onnx',    action='store_true', default=False, help="export policy as onnx (besides jit)")
+    parser.add_argument('--debug',          action='store_true', default=False, help="enable debug mode")
+    parser.add_argument('--load_run',       type=str, default=None, help="run to load, default: last run")
+    parser.add_argument('--ckpt',           type=int, default=-1, help="checkpoint to load, -1 means latest")
+    parser.add_argument('--use_joystick',   action='store_true', default=False, help="use joystick to provide commands")
+    parser.add_argument('--joystick_type',  type=str, default='xbox', help="type of joystick: xbox, switch")
 
     return parser.parse_args()
 
-def export_policy_as_jit(actor_critic, path, prefix=None):
-    if hasattr(actor_critic, 'memory_a'):
-        exporter = PolicyExporterLSTM(actor_critic)
-        exporter.export(path)
-    else: 
+# def export_policy_as_jit(actor_critic, path, prefix=None):
+#     if hasattr(actor_critic, 'memory_a'):
+#         exporter = PolicyExporterLSTM(actor_critic)
+#         exporter.export(path)
+#     else: 
+#         os.makedirs(path, exist_ok=True)
+#         filename = prefix + "_policy.pt" if prefix != None else "policy.pt"
+#         path = os.path.join(path, filename)
+#         model = copy.deepcopy(actor_critic.actor).to('cpu')
+#         traced_script_module = torch.jit.script(model)
+#         traced_script_module.save(path)
+
+class PolicyExporter(torch.nn.Module):
+    def __init__(self, actor_critic):
+        super().__init__()
+        self.actor = copy.deepcopy(actor_critic.actor)
+    
+    def forward(self, obs):
+        return self.actor(obs)
+    
+    def export(self, path, env_cfg, export_onnx=False, prefix=None):
         os.makedirs(path, exist_ok=True)
-        path = os.path.join(path, prefix + '.pt')
-        model = copy.deepcopy(actor_critic.actor).to('cpu')
-        traced_script_module = torch.jit.script(model)
-        traced_script_module.save(path)
+        filename = prefix + "_policy.pt" if prefix != None else "policy.pt"
+        path_pt = os.path.join(path, filename)
+        self.to('cpu')
+        traced_script_module = torch.jit.script(self)
+        traced_script_module.save(path_pt)
+        
+        # export onnx model if needed
+        if export_onnx:
+            filename = prefix + "_policy.onnx" if prefix != None else "policy.onnx"
+            path_onnx = os.path.join(path, filename)
+            input_names = ["nn_input"]
+            output_names = ["nn_output"]
+            dummy_input = torch.randn(1, env_cfg.env.num_observations)
+            torch.onnx.export(self, dummy_input, path_onnx, 
+                              verbose=True, 
+                              export_params=True,
+                              input_names=input_names,
+                              output_names=output_names,
+                              opset_version=11)
 
 class PolicyExporterTS(torch.nn.Module):
+    """Policy exporter for teacher student policies
+
+    Attention: This module is consistent with ActorCriticTS in rsl_rl/modules/actor_critic_ts.py
+               When ActorCriticTS is updated, please remember to update this module accordingly.
+    """
     def __init__(self, actor_critic):
         super().__init__()
         self.actor = copy.deepcopy(actor_critic.actor)
@@ -156,15 +216,35 @@ class PolicyExporterTS(torch.nn.Module):
         x = torch.cat([obs, latent], dim=-1)
         return self.actor(x)
  
-    def export(self, path, prefix=None):
+    def export(self, path, env_cfg, export_onnx=False, prefix=None):
         os.makedirs(path, exist_ok=True)
         filename = prefix + "_policy.pt" if prefix != None else "ts_policy.pt"
         path = os.path.join(path, filename)
         self.to('cpu')
         traced_script_module = torch.jit.script(self)
         traced_script_module.save(path)
+        
+        # export onnx model if needed
+        if export_onnx:
+            filename = prefix + "_policy.onnx" if prefix != None else "ts_policy.onnx"
+            path_onnx = os.path.join(path, filename)
+            input_names = ["obs_input", "obs_history_input"]
+            output_names = ["nn_output"]
+            dummy_obs = torch.randn(1, env_cfg.env.num_observations)
+            dummy_history = torch.randn(1, env_cfg.env.num_history_obs)
+            torch.onnx.export(self, (dummy_obs, dummy_history), path_onnx, 
+                              verbose=True, 
+                              export_params=True,
+                              input_names=input_names,
+                              output_names=output_names,
+                              opset_version=11)
 
 class PolicyExporterEE(torch.nn.Module):
+    """Policy exporter for explicit estimator policies
+
+    Attention: This module is consistent with ActorCriticEE in rsl_rl/modules/actor_critic_ee.py
+               When ActorCriticEE is updated, please remember to update this module accordingly.
+    """
     def __init__(self, actor_critic):
         super().__init__()
         self.actor = copy.deepcopy(actor_critic.actor)
@@ -175,30 +255,35 @@ class PolicyExporterEE(torch.nn.Module):
         x = torch.cat([obs_history, estimated_state], dim=-1)
         return self.actor(x)
  
-    def export(self, path, prefix=None):
+    def export(self, path, env_cfg, export_onnx=False, prefix=None):
         os.makedirs(path, exist_ok=True)
         filename = prefix + "_policy.pt" if prefix != None else "ee_policy.pt"
         path = os.path.join(path, filename)
         self.to('cpu')
         traced_script_module = torch.jit.script(self)
         traced_script_module.save(path)
-    
-    def export_onnx(self, path, cfg, prefix=None):
-        os.makedirs(path, exist_ok=True)
-        filename = prefix + "_policy.onnx" if prefix != None else "ee_policy.onnx"
-        path = os.path.join(path, filename)
-        self.to('cpu')
-        input_names = ["nn_input"]
-        output_names = ["nn_output"]
-        dummy_input = torch.randn(1, cfg.env.num_estimator_features)
-        torch.onnx.export(self, dummy_input, path, 
-                          verbose=True, 
-                          export_params=True,
-                          input_names=input_names,
-                          output_names=output_names,
-                          opset_version=13)
+        
+        # export onnx model if needed
+        if export_onnx:
+            self.export_onnx(path, env_cfg, prefix)
+            filename = prefix + "_policy.onnx" if prefix != None else "ee_policy.onnx"
+            path = os.path.join(path, filename)
+            input_names = ["nn_input"]
+            output_names = ["nn_output"]
+            dummy_input = torch.randn(1, env_cfg.env.num_estimator_features)
+            torch.onnx.export(self, dummy_input, path, 
+                              verbose=True, 
+                              export_params=True,
+                              input_names=input_names,
+                              output_names=output_names,
+                              opset_version=11)
 
 class PolicyExporterWaQ(torch.nn.Module):
+    """Policy exporter for DreamWaQ policies
+    
+    Attention: This module is consistent with ActorCriticDreamWaQ in rsl_rl/modules/actor_critic_dreamwaq.py
+               When ActorCriticDreamWaQ is updated, please remember to update this module accordingly.
+    """
     def __init__(self, actor_critic):
         super().__init__()
         self.actor = copy.deepcopy(actor_critic.actor)
@@ -209,13 +294,28 @@ class PolicyExporterWaQ(torch.nn.Module):
         x = torch.cat([obs, vae_out], dim=-1)
         return self.actor(x)
  
-    def export(self, path, prefix=None):
+    def export(self, path, env_cfg, export_onnx=False, prefix=None):
         os.makedirs(path, exist_ok=True)
         filename = prefix + "_policy.pt" if prefix != None else "waq_policy.pt"
         path = os.path.join(path, filename)
         self.to('cpu')
         traced_script_module = torch.jit.script(self)
         traced_script_module.save(path)
+        
+        # export onnx model if needed
+        if export_onnx:
+            filename = prefix + "_policy.onnx" if prefix != None else "waq_policy.onnx"
+            path_onnx = os.path.join(path, filename)
+            input_names = ["obs_input", "obs_history_input"]
+            output_names = ["nn_output"]
+            dummy_obs = torch.randn(1, env_cfg.env.num_observations)
+            dummy_history = torch.randn(1, env_cfg.env.num_history_obs)
+            torch.onnx.export(self, (dummy_obs, dummy_history), path_onnx, 
+                              verbose=True, 
+                              export_params=True,
+                              input_names=input_names,
+                              output_names=output_names,
+                              opset_version=11)
 
 class PolicyExporterLSTM(torch.nn.Module):
     def __init__(self, actor_critic):

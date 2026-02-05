@@ -10,7 +10,7 @@ class LeggedRobotNavCfg(BaseConfig):
         episode_length_s = 10 # episode length in seconds
         debug = False # if debugging, visualize contacts, etc.
         env_spacing = 1.0
-        fail_to_terminal_time_s = 0.5 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
+        fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
     class terrain:
         mesh_type = 'plane'    # "heightfield" # none, plane, heightfield

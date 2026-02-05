@@ -14,7 +14,6 @@ class TRON1PF_EECfg( LeggedRobotEECfg ):
         # privileged_obs here is actually critic_obs
         num_actions = 6
         env_spacing = 3.0
-        fail_to_terminal_time_s = 0.1
     
     class terrain( LeggedRobotEECfg.terrain ):
         if SIMULATOR == "genesis":

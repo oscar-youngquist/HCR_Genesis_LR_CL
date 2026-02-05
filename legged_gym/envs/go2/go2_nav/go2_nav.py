@@ -11,7 +11,6 @@ from legged_gym import LEGGED_GYM_ROOT_DIR
 from legged_gym.envs.base.legged_robot_nav import LeggedRobotNav
 from legged_gym.utils.math_utils import torch_rand_float, quat_from_euler_xyz
 from legged_gym.utils.helpers import class_to_dict
-from legged_gym.utils.gs_utils import *
 
 class GO2Nav(LeggedRobotNav):
     

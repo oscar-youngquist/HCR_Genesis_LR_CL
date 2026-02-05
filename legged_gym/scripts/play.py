@@ -6,28 +6,23 @@ from legged_gym.utils import *
 
 import numpy as np
 import torch
+from legged_gym.scripts.joystick import Joystick
+    
+def override_configs(env_cfg, args):
+    """Override some environment configuration parameters for testing
 
-def export_policy(alg_runner, path, task_name, prefix=None):
-    if "ts" in task_name or "cat" in task_name:
-        exporter = PolicyExporterTS(alg_runner.alg.actor_critic)
-        exporter.export(path, prefix)
-    elif "ee" in task_name:
-        exporter = PolicyExporterEE(alg_runner.alg.actor_critic)
-        exporter.export(path, prefix)
-    elif "dreamwaq" in task_name:
-        exporter = PolicyExporterWaQ(alg_runner.alg.actor_critic)
-        exporter.export(path, prefix)
-    else:
-        export_policy_as_jit(alg_runner.alg.actor_critic, path, prefix)
-    
-    print('Exported policy as jit script to: ', path)
-    
-def override_configs(env_cfg, task_name):
+    Args:
+        env_cfg: environment configuration
+        args: command line arguments
+    """
+    task_name = args.task
     # override some parameters for testing
+    # number of environments
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
     if "cts" in task_name:  # cts specific
-        env_cfg.env.num_teacher = 3
+        env_cfg.env.num_teacher = 1
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
+    # adjust parameters according to terrain type
     if env_cfg.terrain.mesh_type == "plane":
         for i in range(2):
             env_cfg.viewer.pos[i] = env_cfg.viewer.pos[i] - env_cfg.terrain.plane_length / 4
@@ -40,7 +35,7 @@ def override_configs(env_cfg, task_name):
         
         # stairs
         env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-                                        "step_width": 0.31, "step_height": -0.1, "platform_size": 3.0}
+                                        "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
         # single stair
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
         #                                   "step_width": 1.0, "step_height": -0.05, "platform_size": 3.0}
@@ -54,19 +49,44 @@ def override_configs(env_cfg, task_name):
         #                                   "max_size": 2.0,
         #                                   "num_rects": 20,
         #                                   "platform_size": 3.0}
-        env_cfg.env.debug_draw_height_points = True
     
     env_cfg.env.debug = True
-    env_cfg.noise.add_noise = True
+    
+    if args.use_joystick:
+        env_cfg.commands.heading_command = False
 
-def interaction_loop(env, policy, task_name):
+def print_debug_info(env, robot_index):
+    """Print debug information while interacting
+
+    Args:
+        env: environment object
+        robot_index (int): index of the robot to print info for
+    """
+    # print debug info
+    # print("base lin vel: ", env.simulator.base_lin_vel[robot_index, :].cpu().numpy())
+    # print("base yaw angle: ", env.simulator.base_euler[robot_index, 2].item())
+    # print("base height: ", env.simulator.base_pos[robot_index, 2].cpu().numpy())
+    # print("foot_height: ", env.simulator.feet_pos[robot_index, :, 2].cpu().numpy())
+    # print(f"ankle pitch: {env.simulator.dof_pos[robot_index, [3,7]].cpu().numpy()}")
+    pass
+
+def interaction_loop(env, policy, args):
+    """Run interaction loop between environment and policy
+
+    Args:
+        env: environment object
+        policy : a policy that takes observations and outputs actions
+        args: command line arguments
+    """
+    
     logger = Logger(env.dt)
     robot_index = 0 # which robot is used for logging
     joint_index = 2 # which joint is used for logging
     stop_state_log = 300 # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
-    
+        
     # Get initial observations according to task type
+    task_name = args.task
     if "ts" in task_name or "cat" in task_name:  # teacher-student
         obs_buf, privileged_obs_buf, obs_history, critic_obs = env.get_observations()
     elif "ee" in task_name:  # explicit estimator
@@ -75,9 +95,22 @@ def interaction_loop(env, policy, task_name):
         obs_buf, privileged_obs_buf, obs_history, explicit_labels, next_states = env.get_observations()
     else: # vanilla
         obs = env.get_observations()
-        
+    
+    # Setup joystick if needed
+    if args.use_joystick:
+        joystick = Joystick(joystick_type=args.joystick_type)
+
+    # interaction loop
     for i in range(10*int(env.max_episode_length)):
         
+        # update commands from joystick
+        if args.use_joystick:
+            joystick.update()
+            env.commands[:, 0] = -joystick.ly
+            env.commands[:, 1] = -joystick.lx
+            env.commands[:, 2] = -joystick.rx
+        
+        # Step the environment according to task type
         if "ts" in task_name or "cat" in task_name:
             actions = policy(obs_buf, obs_history)
             obs_buf, privileged_obs_buf, obs_history, critic_obs, rews, dones, infos = env.step(actions.detach())
@@ -91,6 +124,7 @@ def interaction_loop(env, policy, task_name):
             actions = policy(obs.detach())
             obs, _, rews, dones, infos = env.step(actions.detach())
         
+        # print debug info
         print_debug_info(env, robot_index)
         
         # Update logger info
@@ -122,23 +156,48 @@ def interaction_loop(env, policy, task_name):
         elif i==stop_rew_log:
             logger.print_rewards()
 
-def print_debug_info(env, robot_index):
-    # print debug info
-    # print("base lin vel: ", env.base_lin_vel[robot_index, :].cpu().numpy())
-    # print("base yaw angle: ", env.base_euler[robot_index, 2].item())
-    # print("base height: ", env.base_pos[robot_index, 2].cpu().numpy())
-    # print("foot_height: ", env.link_pos[robot_index, env.feet_indices, 2].cpu().numpy())
-    pass
+def export_policy(alg_runner, path: str, args, env_cfg, prefix: str =None):
+    """export the policy as jit script according to different task types
+
+    Args:
+        alg_runner: algorithm runner
+        path (str): path to which the policy is exported
+        args: command line arguments
+        env_cfg: environment configuration
+        prefix (str, optional): prefix for the exported jit file. Defaults to None.
+    """
+    task_name = args.task
+    if "ts" in task_name or "cat" in task_name:
+        exporter = PolicyExporterTS(alg_runner.alg.actor_critic)
+        exporter.export(path, env_cfg, args.export_onnx, prefix)
+    elif "ee" in task_name:
+        exporter = PolicyExporterEE(alg_runner.alg.actor_critic)
+        exporter.export(path, env_cfg, args.export_onnx, prefix)
+    elif "dreamwaq" in task_name:
+        exporter = PolicyExporterWaQ(alg_runner.alg.actor_critic)
+        exporter.export(path, env_cfg, args.export_onnx, prefix)
+    else:
+        exporter = PolicyExporter(alg_runner.alg.actor_critic)
+        exporter.export(path, env_cfg, args.export_onnx, prefix)
+    
+    print('Exported policy as jit script to: ', path)
+    if args.export_onnx:
+        print('Exported policy as onnx to: ', path)
     
 
 def play(args):
+    """Main function to run the play script
+
+    Args:
+        args (_type_): command line arguments
+    """
     if SIMULATOR == "genesis":
         gs.init(
             backend=gs.cpu if args.cpu else gs.gpu,
             logging_level='warning',
         )
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
-    override_configs(env_cfg, args.task)
+    override_configs(env_cfg, args)
 
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
@@ -147,13 +206,13 @@ def play(args):
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
     policy = ppo_runner.get_inference_policy(device=env.device)
     
-    # export policy as a jit module (used to run it from C++)
+    # export policy as a jit module (used to run it from C++ or python)
     if EXPORT_POLICY:
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 
                             train_cfg.runner.load_run, 'exported')
-        export_policy(ppo_runner, path, args.task)
+        export_policy(ppo_runner, path, args, env_cfg, prefix=train_cfg.runner.load_run)
 
-    interaction_loop(env, policy, args.task)
+    interaction_loop(env, policy, args)
     
 if __name__ == '__main__':
     EXPORT_POLICY = True

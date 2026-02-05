@@ -157,13 +157,13 @@ class OnPolicyRunner:
     def _pre_learn(self, init_at_random_ep_len):
         # initialize writer
         if self.log_dir is not None and self.writer is None:
-            # if self.sync_wandb:
-            #     wandb.init(
-            #         project="genesis_lr",
-            #         name=self.wandb_run_name,
-            #         sync_tensorboard=True,
-            #         config=self.all_cfg,
-            #     )
+            if self.sync_wandb:
+                wandb.init(
+                    project="genesis_lr",
+                    name=self.wandb_run_name,
+                    sync_tensorboard=True,
+                    config=self.all_cfg,
+                )
             self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
         if init_at_random_ep_len:
             self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
