@@ -23,6 +23,8 @@ class TRON1PF_EE(LeggedRobotEE):
         # compute observations, rewards, resets, ...
         self.check_termination()
         self.compute_reward()
+        
+        #----- above is the same as parent class function -----#
         # Periodic Reward Framework phi cycle
         # step after computing reward but before resetting the env
         self.gait_time += self.dt
@@ -31,6 +33,7 @@ class TRON1PF_EE(LeggedRobotEE):
         over_limit_indices = is_over_limit.nonzero(as_tuple=False).flatten()
         self.gait_time[over_limit_indices] = 0.0
         self.phi = self.gait_time / self.gait_period
+        #----- below is the same as parent class function -----#
         
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)

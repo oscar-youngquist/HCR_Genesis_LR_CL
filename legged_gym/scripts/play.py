@@ -32,6 +32,7 @@ def override_configs(env_cfg, args):
         env_cfg.terrain.num_cols = 2
         env_cfg.terrain.curriculum = False
         env_cfg.terrain.selected = True
+        env_cfg.env.debug_draw_height_points = True
         
         # stairs
         env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
@@ -156,7 +157,7 @@ def interaction_loop(env, policy, args):
         elif i==stop_rew_log:
             logger.print_rewards()
 
-def export_policy(alg_runner, path: str, args, env_cfg, prefix: str =None):
+def export_policy(alg_runner, path: str, args, env_cfg, train_cfg):
     """export the policy as jit script according to different task types
 
     Args:
@@ -164,21 +165,21 @@ def export_policy(alg_runner, path: str, args, env_cfg, prefix: str =None):
         path (str): path to which the policy is exported
         args: command line arguments
         env_cfg: environment configuration
-        prefix (str, optional): prefix for the exported jit file. Defaults to None.
+        train_cfg: training configuration
     """
     task_name = args.task
     if "ts" in task_name or "cat" in task_name:
         exporter = PolicyExporterTS(alg_runner.alg.actor_critic)
-        exporter.export(path, env_cfg, args.export_onnx, prefix)
+        exporter.export(path, env_cfg, args.export_onnx, train_cfg)
     elif "ee" in task_name:
         exporter = PolicyExporterEE(alg_runner.alg.actor_critic)
-        exporter.export(path, env_cfg, args.export_onnx, prefix)
+        exporter.export(path, env_cfg, args.export_onnx, train_cfg)
     elif "dreamwaq" in task_name:
         exporter = PolicyExporterWaQ(alg_runner.alg.actor_critic)
-        exporter.export(path, env_cfg, args.export_onnx, prefix)
+        exporter.export(path, env_cfg, args.export_onnx, train_cfg)
     else:
         exporter = PolicyExporter(alg_runner.alg.actor_critic)
-        exporter.export(path, env_cfg, args.export_onnx, prefix)
+        exporter.export(path, env_cfg, args.export_onnx, train_cfg)
     
     print('Exported policy as jit script to: ', path)
     if args.export_onnx:
@@ -207,14 +208,12 @@ def play(args):
     policy = ppo_runner.get_inference_policy(device=env.device)
     
     # export policy as a jit module (used to run it from C++ or python)
-    if EXPORT_POLICY:
-        path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 
+    path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 
                             train_cfg.runner.load_run, 'exported')
-        export_policy(ppo_runner, path, args, env_cfg, prefix=train_cfg.runner.load_run)
+    export_policy(ppo_runner, path, args, env_cfg, train_cfg)
 
     interaction_loop(env, policy, args)
     
 if __name__ == '__main__':
-    EXPORT_POLICY = True
     args = get_args()
     play(args)

@@ -49,7 +49,7 @@ class LeggedRobotCfg(BaseConfig):
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
         # [Convention] When calling reset_root_states() of simulator, the input quaternion is in gym format [x,y,z,w]
-        #  simulators will convert it to their own format if needed.
+        #  simulators will convert it to compatible format if needed.
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym(xyzw) and genesis(wxyz)
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
@@ -203,9 +203,11 @@ class LeggedRobotCfg(BaseConfig):
         lookat = [0., 0, 1.]  # [m]
         rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
     
+    # sensor configuration:
     class sensor:
         add_depth = False
         class depth_camera_config:
+            use_warp = False       # whether to use warp-based depth camera model
             near_clip = 0.1
             far_clip = 10.0
             near_plane = 0.1
@@ -214,11 +216,11 @@ class LeggedRobotCfg(BaseConfig):
             fov_horizontal = 75
             pos = (0.3, 0.0, 0.1)
             euler = (0.0, 0.0, 0.0)
-            decimation = 5
+            decimation = 5         # number of control steps per depth frame
 
     class sim:
         # Common
-        dt =  0.005
+        dt = 0.005                 # 200 Hz
         substeps = 1
         # For Genesis
         max_collision_pairs = 100  # More collision pairs will occupy more GPU memory and slow down the simulation

@@ -159,7 +159,7 @@ class OnPolicyRunner:
         if self.log_dir is not None and self.writer is None:
             if self.sync_wandb:
                 wandb.init(
-                    project="genesis_lr",
+                    project="LeggedGym-Ex",
                     name=self.wandb_run_name,
                     sync_tensorboard=True,
                     config=self.all_cfg,

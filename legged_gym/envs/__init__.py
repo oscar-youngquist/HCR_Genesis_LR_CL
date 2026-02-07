@@ -67,6 +67,9 @@ from legged_gym.envs.tron1_pf.tron1_pf_ee.tron1_pf_ee_config import TRON1PF_EECf
 # tron1_sf
 from legged_gym.envs.tron1_sf.tron1_sf import TRON1SF
 from legged_gym.envs.tron1_sf.tron1_sf_config import TRON1SFCfg, TRON1SFCfgPPO
+# tron1_sf_ee
+from legged_gym.envs.tron1_sf.tron1_sf_ee.tron1_sf_ee import TRON1SF_EE
+from legged_gym.envs.tron1_sf.tron1_sf_ee.tron1_sf_ee_config import TRON1SF_EECfg, TRON1SF_EECfgPPO
 # bipedal_walker
 from legged_gym.envs.bipedal_walker.bipedal_walker_config import BipedalWalkerCfg, BipedalWalkerCfgPPO
 from legged_gym.envs.bipedal_walker.bipedal_walker import BipedalWalker
@@ -89,5 +92,6 @@ task_registry.register( "go2_nav", GO2Nav, GO2NavCfg(), GO2NavCfgPPO())
 task_registry.register( "tron1_pf", TRON1PF, TRON1PFCfg(), TRON1PFCfgPPO())
 task_registry.register( "tron1_pf_ee", TRON1PF_EE, TRON1PF_EECfg(), TRON1PF_EECfgPPO())
 task_registry.register( "tron1_sf", TRON1SF, TRON1SFCfg(), TRON1SFCfgPPO())
+task_registry.register( "tron1_sf_ee", TRON1SF_EE, TRON1SF_EECfg(), TRON1SF_EECfgPPO())
 # task_registry.register( "go2_sysid", GO2SysID, GO2SysIDCfg(), GO2CfgPPO())
 # task_registry.register( "bipedal_walker", BipedalWalker, BipedalWalkerCfg(), BipedalWalkerCfgPPO())

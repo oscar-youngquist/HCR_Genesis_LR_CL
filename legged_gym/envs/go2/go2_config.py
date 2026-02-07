@@ -65,7 +65,6 @@ class GO2Cfg( LeggedRobotCfg ):
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
         # For IsaacGym
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
-  
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.36

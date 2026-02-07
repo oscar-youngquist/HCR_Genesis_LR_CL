@@ -2,21 +2,39 @@ from legged_gym.envs.base.legged_robot_ee_config import LeggedRobotEECfg, Legged
 from legged_gym import SIMULATOR
 
 # TRON1 Sole Foot
-class TRON1SFCfg( LeggedRobotEECfg ):
-    
+class TRON1SF_EECfg( LeggedRobotEECfg ):
     class env( LeggedRobotEECfg.env ):
         num_envs = 4096
-        num_single_obs = 33
+        num_single_obs = 37
         frame_stack = 10    # Policy frame stack number
+        num_estimator_features = int( num_single_obs * frame_stack )
+        num_estimator_labels = 3+9+2+6
         c_frame_stack = 10  # Critic frame stack number
-        num_observations = int( num_single_obs * frame_stack )
-        num_single_privileged_obs = num_single_obs + 39
-        num_privileged_obs = int( num_single_privileged_obs * c_frame_stack )
+        single_critic_obs_len = num_single_obs + 26 + 2 + 9 + 49 + 6 + 18
+        num_privileged_obs = int( single_critic_obs_len * c_frame_stack )
         num_actions = 8
         env_spacing = 2.0
     
     class terrain( LeggedRobotEECfg.terrain ):
-        mesh_type = "plane" # none, plane, heightfield
+        if SIMULATOR == "genesis":
+            mesh_type = "heightfield" # for genesis
+        else:
+            mesh_type = "trimesh"  # for isaacgym
+        restitution = 0.
+        border_size = 15.0 # [m]
+        curriculum = True
+        # rough terrain only:
+        obtain_terrain_info_around_feet = True
+        measure_heights = True
+        measured_points_x = [-0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3] # 7x7=49
+        measured_points_y = [-0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3]
+        terrain_length = 8.0
+        terrain_width = 8.0
+        platform_size = 4.0
+        num_rows = 10  # number of terrain rows (levels)
+        num_cols = 10  # number of terrain cols (types)
+        # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
+        terrain_proportions = [0.2, 0.2, 0.2, 0.2, 0.2]
         
     class init_state( LeggedRobotEECfg.init_state ):
         pos = [0.0, 0.0, 0.85]     # x,y,z [m]
@@ -79,6 +97,8 @@ class TRON1SFCfg( LeggedRobotEECfg ):
         foot_name = "ankle"
         penalize_contacts_on = ["knee", "hip"]
         terminate_after_contacts_on = ["base", "abad"]
+        obtain_link_contact_states = True
+        contact_state_link_names = ["base", "abad", "hip", "knee", "ankle"]
         # For Genesis
         dof_names = [           # align with the real robot
             "abad_L_Joint",
@@ -100,9 +120,9 @@ class TRON1SFCfg( LeggedRobotEECfg ):
         foot_clearance_target = 0.1  # desired foot clearance above ground [m]
         foot_height_offset = 0.055   # height of the foot coordinate origin above ground [m]
         foot_clearance_tracking_sigma = 0.01
+        base_height_tracking_sigma = 0.01
         foot_distance_threshold = 0.115
-        about_landing_threshold = 0.05
-        max_projected_gravity = -0.2
+        max_projected_gravity = -0.4
         only_positive_rewards = False
         class scales( LeggedRobotEECfg.rewards.scales ):
             # limitation
@@ -112,24 +132,33 @@ class TRON1SFCfg( LeggedRobotEECfg ):
             feet_distance = -100.0
             # command tracking
             tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
+            tracking_ang_vel = 1.0
+            tracking_base_height = 0.3
             # smooth
             lin_vel_z = -0.5
-            base_height = -5.0
             ang_vel_xy = -0.05
             orientation = -5.0
             dof_power = -2.e-4
             dof_acc = -2.e-7
+            foot_acc = -1.e-5
             action_rate = -0.01
             action_smoothness = -0.01
             # gait
-            feet_air_time = 1.0
-            no_fly = 0.5
-            foot_clearance = 0.4
-            foot_landing_vel = -0.15
-            # keep_ankle_pitch_zero_in_air = 1.0
+            foot_clearance = 0.5
             hip_pos_zero_command = -10.0
-            foot_flat_when_contact = 0.25
+            ankle_torque_limits = -0.1
+            biped_periodic_gait = 1.0
+        
+        class periodic_reward_framework:
+            '''Periodic reward framework in OSU's paper(https://arxiv.org/abs/2011.01387)'''
+            gait_function_type = "step" # can be "step" or "smooth"
+            kappa = 20
+            # start of swing(a_swing) is all the same
+            b_swing = 0.5
+            # phase offset of left and right legs
+            theta_left = 0.0
+            theta_right = 0.5
+            gait_period = 0.5  # [s]
     
     class commands( LeggedRobotEECfg.commands ):
         curriculum = True
@@ -145,7 +174,7 @@ class TRON1SFCfg( LeggedRobotEECfg ):
 
     class domain_rand( LeggedRobotEECfg.domain_rand ):
         randomize_friction = True
-        friction_range = [0.5, 1.25]
+        friction_range = [0.0, 1.7]
         randomize_base_mass = True
         added_mass_range = [-0.5, 1.]
         push_robots = True
@@ -166,7 +195,7 @@ class TRON1SFCfg( LeggedRobotEECfg ):
         randomize_joint_damping = True
         joint_damping_range = [1.4, 1.45]
 
-class TRON1SFCfgPPO( LeggedRobotEECfgPPO ):
+class TRON1SF_EECfgPPO( LeggedRobotEECfgPPO ):
     class runner( LeggedRobotEECfgPPO.runner ):
         run_name = 'ee'
         if SIMULATOR == "genesis":

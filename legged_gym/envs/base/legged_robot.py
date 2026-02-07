@@ -87,6 +87,10 @@ class LeggedRobot(BaseTask):
         
         if self.debug:
             self.simulator.draw_debug_vis()
+            if self.cfg.env.debug_draw_height_points:
+                self.simulator.draw_height_points()
+            if self.cfg.env.debug_draw_height_points_around_feet:
+                self.simulator.draw_height_points_around_feet()
 
     def check_termination(self):
         """ Check if environments need to be reset

@@ -7,7 +7,7 @@ class TRON1PF_EECfg( LeggedRobotEECfg ):
         num_single_obs = 31  # number of elements in single step observation
         frame_stack = 10     # number of frames to stack for obs_history
         num_estimator_features = int(num_single_obs * frame_stack) # dim of input of estimator
-        num_estimator_labels = 17 # dim of output of estimator
+        num_estimator_labels = 17  # dim of output of estimator
         c_frame_stack = 10         # number of frames to stack for critic input
         single_critic_obs_len = num_single_obs + 22 + 49 + 6 + 2 + 24 # number of elements in single step critic observation
         num_privileged_obs = c_frame_stack * single_critic_obs_len
