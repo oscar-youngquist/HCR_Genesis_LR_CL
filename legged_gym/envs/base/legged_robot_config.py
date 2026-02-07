@@ -193,6 +193,7 @@ class LeggedRobotCfg(BaseConfig):
             gravity = 0.05
             height_measurements = 0.1
     
+    # constraints config for CaT (Constraints as Termination)
     class constraints:
         class limits:
             pass
@@ -207,9 +208,9 @@ class LeggedRobotCfg(BaseConfig):
     # sensor configuration:
     class sensor:
         add_depth = False
-        num_sensors = 1
         class depth_camera_config:
-            num_history = 1   # history frames for depth images
+            num_sensors = 1
+            num_history = 1        # history frames for depth images
             use_warp = False       # whether to use warp-based depth camera model
             near_clip = 0.1
             far_clip = 10.0
@@ -217,7 +218,7 @@ class LeggedRobotCfg(BaseConfig):
             far_plane = 10.0
             resolution = (80, 60)
             horizontal_fov_deg = 75
-            pos = (0.3, 0.0, 0.1)
+            pos =   (0.3, 0.0, 0.1)
             euler = (0.0, 0.0, 0.0)
             decimation = 5
             # Warp only
@@ -238,6 +239,7 @@ class LeggedRobotCfg(BaseConfig):
         up_axis = 1  # 0 is y, 1 is z
         use_gpu_pipeline = True
 
+        # PhysX engine parameters, for IsaacGym only
         class physx:
             use_gpu = True
             num_subscenes = 0
