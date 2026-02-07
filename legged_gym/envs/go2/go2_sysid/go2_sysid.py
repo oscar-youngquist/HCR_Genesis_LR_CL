@@ -9,7 +9,6 @@ import torch
 from legged_gym import LEGGED_GYM_ROOT_DIR
 from legged_gym.envs.base.legged_robot import LeggedRobot
 from legged_gym.utils.terrain import Terrain
-from legged_gym.utils.gs_utils import *
 from .go2_sysid_config import GO2SysIDCfg
 import pandas as pd
 from tqdm import tqdm
@@ -40,7 +39,7 @@ class GO2SysID(LeggedRobot):
 
         # sample parameters
         joint_damping_range = self.cfg.sysid_param_range.joint_damping_range
-        joint_stiffness_range = self.cfg.sysid_param_range.joint_stiffness_range
+        joint_friction_range = self.cfg.sysid_param_range.joint_friction_range
         joint_armature_range = self.cfg.sysid_param_range.joint_armature_range
         # set parameters
         sampled_dampings = np.zeros((self.num_envs,))
@@ -52,20 +51,20 @@ class GO2SysID(LeggedRobot):
         # All joints in the same env share the same damping, stiffness and armature
         joint_dampings = gs_rand_float(
             joint_damping_range[0], joint_damping_range[1], (self.num_envs,1), device=self.device).repeat(1, self.num_actions)
-        joint_stiffness = gs_rand_float(
-            joint_stiffness_range[0], joint_stiffness_range[1], (self.num_envs,1), device=self.device).repeat(1, self.num_actions)
+        joint_friction = gs_rand_float(
+            joint_friction_range[0], joint_friction_range[1], (self.num_envs,1), device=self.device).repeat(1, self.num_actions)
         joint_armature = gs_rand_float(
             joint_armature_range[0], joint_armature_range[1], (self.num_envs,1), device=self.device).repeat(1, self.num_actions)
 
         # assume all joints have the same damping and friction
         for i in range(self.num_envs):
             sampled_dampings[i] = joint_dampings[i][0]
-            sampled_stiffness[i] = joint_stiffness[i][0]
+            sampled_stiffness[i] = joint_friction[i][0]
             sampled_armatures[i] = joint_armature[i][0]
         self.robot.set_dofs_damping(
             joint_dampings, self.motors_dof_idx)
         self.robot.set_dofs_stiffness(
-            joint_stiffness, self.motors_dof_idx)
+            joint_friction, self.motors_dof_idx)
         self.robot.set_dofs_armature(
             joint_armature, self.motors_dof_idx)
 

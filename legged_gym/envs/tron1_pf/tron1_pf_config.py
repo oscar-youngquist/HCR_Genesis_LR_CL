@@ -2,9 +2,8 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 
 # TROn1 Point Foot
 class TRON1PFCfg( LeggedRobotCfg ):
-    
     class env( LeggedRobotCfg.env ):
-        num_envs = 8192
+        num_envs = 4096
         num_single_obs = 27
         frame_stack = 5    # Policy frame stack number
         c_frame_stack = 5  # Critic frame stack number
@@ -110,25 +109,14 @@ class TRON1PFCfg( LeggedRobotCfg ):
         randomize_base_mass = True
         added_mass_range = [-1., 1.]
         push_robots = True
-        push_interval_s = 15
+        push_interval_s = 10
         max_push_vel_xy = 1.
         randomize_com_displacement = True
-        com_pos_x_range = [-0.01, 0.01]
-        com_pos_y_range = [-0.01, 0.01]
-        com_pos_z_range = [-0.01, 0.01]
+        com_pos_x_range = [-0.03, 0.03]
+        com_pos_y_range = [-0.03, 0.03]
+        com_pos_z_range = [-0.03, 0.03]
 
 class TRON1PFCfgPPO( LeggedRobotCfgPPO ):
-    class policy (LeggedRobotCfgPPO.policy ):
-        init_noise_std = 1.0
-        actor_hidden_dims = [512, 256, 128]
-        critic_hidden_dims = [512, 256, 128]
-        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
-        # only for 'ActorCriticRecurrent':
-        # rnn_type = 'lstm'
-        # rnn_hidden_size = 512
-        # rnn_num_layers = 1
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
-        entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'tron1_pf'

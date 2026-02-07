@@ -38,12 +38,18 @@ class GO2WTW(LeggedRobot):
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
         self._calc_periodic_reward_obs()
+        if self.cfg.sensor.add_depth:
+            self.simulator.update_depth_images()
         self.compute_observations() # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
         self.llast_actions[:] = self.last_actions[:]
         self.last_actions[:] = self.actions[:]
         self.simulator.last_dof_vel[:] = self.simulator.dof_vel[:]
-
+        self.simulator.last_feet_vel[:] = self.simulator.feet_vel[:]
+        
+        if self.debug:
+            self.simulator.draw_debug_vis()
+            
     def compute_observations(self):
         """ Computes observations
         """
@@ -80,9 +86,6 @@ class GO2WTW(LeggedRobot):
                 # ctrl_delay,                                    # 1
                 self.simulator._kp_scale,                                # 12
                 self.simulator._kd_scale,                                # 12
-                self.simulator._joint_armature,                          # 1
-                self.simulator._joint_stiffness,                         # 1
-                self.simulator._joint_damping,                           # 1
                 # privileged infos
                 self.exp_C_frc_fl,
                 self.exp_C_frc_fr, 
@@ -110,6 +113,9 @@ class GO2WTW(LeggedRobot):
     def reset_idx(self, env_ids):
         if len(env_ids) == 0:
             return
+        # update curriculum
+        if self.cfg.terrain.curriculum:
+            self._update_terrain_curriculum(env_ids)
         # avoid updating command curriculum at each step since the maximum command is common to all envs
         if self.cfg.commands.curriculum and (self.common_step_counter % self.max_episode_length ==0):
             self.update_command_curriculum(env_ids)
@@ -119,11 +125,13 @@ class GO2WTW(LeggedRobot):
         self._resample_behavior_params(env_ids)
         self._resample_commands(env_ids)
         self._reset_dofs(env_ids)
+        self._reset_root_states(env_ids)
         self.simulator.reset_idx(env_ids)
 
         # reset buffers
         self.llast_actions[env_ids] = 0.
         self.last_actions[env_ids] = 0.
+        self.actions[env_ids] = 0.
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1

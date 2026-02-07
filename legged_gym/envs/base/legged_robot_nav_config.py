@@ -10,7 +10,7 @@ class LeggedRobotNavCfg(BaseConfig):
         episode_length_s = 10 # episode length in seconds
         debug = False # if debugging, visualize contacts, etc.
         env_spacing = 1.0
-        fail_to_terminal_time_s = 0.5 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
+        fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
     class terrain:
         mesh_type = 'plane'    # "heightfield" # none, plane, heightfield
@@ -53,8 +53,7 @@ class LeggedRobotNavCfg(BaseConfig):
 
     class init_state:
         pos = [0.0, 0.0, 1.]           # x,y,z [m]
-        rot_gs = [1.0, 0.0, 0.0, 0.0]  # w,x,y,z [quat]
-        rot_gym = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym and genesis
+        rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat], quaternion sequence definitions are different in gym and genesis
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
         # initial state randomization

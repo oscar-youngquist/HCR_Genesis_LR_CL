@@ -7,6 +7,7 @@ class BaseConfig:
     
     @staticmethod
     def init_member_classes(obj):
+        # 将类中定义的变量实例化
         # iterate over all attributes names
         for key in dir(obj):
             # disregard builtin attributes

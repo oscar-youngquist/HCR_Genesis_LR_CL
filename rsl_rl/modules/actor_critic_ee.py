@@ -23,11 +23,12 @@ class ActorCriticEE(nn.Module):
                  estimator_hidden_dims=[256, 128],
                  activation='elu',
                  init_noise_std=1.0,
+                 clip_actions=100.0,
                  **kwargs):
         if kwargs:
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " +
                   str([key for key in kwargs.keys()]))
-        super(ActorCriticEE, self).__init__()
+        super().__init__()
 
         activation = get_activation(activation)
 
@@ -47,6 +48,7 @@ class ActorCriticEE(nn.Module):
                 actor_layers.append(
                     nn.Linear(actor_hidden_dims[l], actor_hidden_dims[l + 1]))
                 actor_layers.append(activation)
+        actor_layers.append(nn.Hardtanh(max_val=clip_actions, min_val=-clip_actions))
         self.actor = nn.Sequential(*actor_layers)
 
         # Value function
@@ -130,10 +132,8 @@ class ActorCriticEE(nn.Module):
         value = self.critic(critic_observations)
         return value
     
-    def est_inference(self, estimator_features):
-        return self.estimator(estimator_features)
-
-    def act_inference(self, estimator_features, estimator_output):
+    def act_inference(self, estimator_features):
+        estimator_output = self.estimator(estimator_features)
         actions_mean = self.actor(torch.cat(
             (
             estimator_features, 

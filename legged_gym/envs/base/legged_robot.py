@@ -77,16 +77,20 @@ class LeggedRobot(BaseTask):
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
         if self.cfg.sensor.add_depth:
-            
             self.simulator.update_depth_images()
         self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
         self.llast_actions[:] = self.last_actions[:]
         self.last_actions[:] = self.actions[:]
         self.simulator.last_dof_vel[:] = self.simulator.dof_vel[:]
+        self.simulator.last_feet_vel[:] = self.simulator.feet_vel[:]
         
         if self.debug:
             self.simulator.draw_debug_vis()
+            if self.cfg.env.debug_draw_height_points:
+                self.simulator.draw_height_points()
+            if self.cfg.env.debug_draw_height_points_around_feet:
+                self.simulator.draw_height_points_around_feet()
 
     def check_termination(self):
         """ Check if environments need to be reset
@@ -123,11 +127,13 @@ class LeggedRobot(BaseTask):
 
         self._resample_commands(env_ids)
         self._reset_dofs(env_ids)
+        self._reset_root_states(env_ids)
         self.simulator.reset_idx(env_ids)
 
         # reset buffers
         self.llast_actions[env_ids] = 0.
         self.last_actions[env_ids] = 0.
+        self.actions[env_ids] = 0.
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
@@ -180,8 +186,8 @@ class LeggedRobot(BaseTask):
         """ Computes observations
         """
         self.obs_buf = torch.cat((self.simulator.base_lin_vel * self.obs_scales.lin_vel,                    # 3
-                                    self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
                                     self.simulator.projected_gravity,                                         # 3
+                                    self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
                                     self.commands[:, :3] * self.commands_scale,                   # 3
                                     (self.simulator.dof_pos - self.simulator.default_dof_pos) 
                                       * self.obs_scales.dof_pos, # num_dofs
@@ -273,6 +279,23 @@ class LeggedRobot(BaseTask):
         dof_pos[:, :] = self.simulator.default_dof_pos[:] + \
             torch_rand_float(-0.2, 0.2, (len(env_ids), self.num_actions), self.device)
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
+    
+    def _reset_root_states(self, env_ids):
+        # base pos
+        if self.simulator.custom_origins:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+            base_pos[:, :2] += torch_rand_float(-0.5, 0.5, (len(env_ids), 2), device=self.device) # xy position within 1m of the center
+        else:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+        # base quat
+        base_quat = self.simulator.base_init_quat.reshape(1, -1).repeat(len(env_ids), 1)
+        # base lin vel
+        base_lin_vel = torch_rand_float(-0.5, 0.5, (len(env_ids), 3), self.device)
+        # base ang vel
+        base_ang_vel = torch_rand_float(-0.5, 0.5, (len(env_ids), 3), self.device)
+        self.simulator.reset_root_states(env_ids, base_pos, base_quat, base_lin_vel, base_ang_vel)
 
     def _post_physics_step_callback(self):
         """ Callback called before computing terminations, rewards, and observations
@@ -285,10 +308,13 @@ class LeggedRobot(BaseTask):
             forward = quat_apply(self.simulator.base_quat, self.forward_vec)
             heading = torch.atan2(forward[:, 1], forward[:, 0])
             self.commands[:, 2] = torch.clip(
-                0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
+                0.5 * wrap_to_pi(self.commands[:, 3] - heading), self.cfg.commands.ranges.ang_vel_yaw[0], 
+                                                                 self.cfg.commands.ranges.ang_vel_yaw[1])
 
         if self.cfg.terrain.measure_heights:
             self.simulator.get_heights()
+            if self.cfg.terrain.obtain_terrain_info_around_feet:
+                self.simulator.calc_terrain_info_around_feet()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
             self.simulator.push_robots()
 
@@ -533,10 +559,20 @@ class LeggedRobot(BaseTask):
         self.feet_air_time *= ~contact_filt
         return rew_airTime
 
-    def _reward_stand_still(self):
+    def _reward_dof_vel_stand_still(self):
         # Penalize motion at zero commands
         return torch.sum(torch.abs(self.simulator.dof_vel), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
 
+    def _reward_dof_pos_stand_still(self):
+        # Penalize position deviation at zero commands
+        return torch.sum(torch.square(self.simulator.dof_pos - self.simulator.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+    
+    def _reward_feet_contact_stand_still(self):
+        # Encourage feet contact with the ground at zero commands
+        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
+        full_contact = torch.sum(1.*contacts, dim=1)==len(self.simulator.feet_indices)
+        return 1.0*full_contact * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+    
     def _reward_dof_close_to_default(self):
         # Penalize dof position deviation from default
         return torch.sum(torch.square(self.simulator.dof_pos - self.simulator.default_dof_pos), dim=1)
@@ -571,14 +607,7 @@ class LeggedRobot(BaseTask):
         return torch.ones(
             self.num_envs, dtype=torch.float, device=self.device, requires_grad=False)
     
-    def _reward_no_fly(self):
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 0.1
-        single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact
-
-    def _reward_feet_distance(self):
-        '''reward for feet distance'''
-        feet_xy_distance = torch.norm(
-            self.simulator.feet_pos[:, 0, [0, 1]] - self.simulator.feet_pos[:, 1, [0, 1]], dim=-1)
-        return torch.max(torch.zeros_like(feet_xy_distance),
-                         self.cfg.rewards.foot_distance_threshold - feet_xy_distance)
+    def _reward_foot_acc(self):
+        '''reward for foot acceleration'''
+        foot_acc = (self.simulator.feet_vel - self.simulator.last_feet_vel) / self.dt
+        return torch.sum(torch.square(foot_acc), dim=(1, 2))

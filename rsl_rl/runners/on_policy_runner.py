@@ -64,6 +64,22 @@ class OnPolicyRunner:
         )
         self.device = device
         self.env = env
+        self._init_agent_and_algo()
+        self.num_steps_per_env = self.cfg["num_steps_per_env"]
+        self.save_interval = self.cfg["save_interval"]
+        self._init_storage()
+
+        # Log
+        self.log_dir = log_dir
+        self.sync_wandb = self.cfg["sync_wandb"] if "sync_wandb" in self.cfg else False
+        self.writer = None
+        self.tot_timesteps = 0
+        self.tot_time = 0
+        self.current_learning_iteration = 0
+
+        self.env.reset()
+    
+    def _init_agent_and_algo(self):
         if self.env.num_privileged_obs is not None:
             num_critic_obs = self.env.num_privileged_obs 
         else:
@@ -75,35 +91,14 @@ class OnPolicyRunner:
                                                         **self.policy_cfg).to(self.device)
         alg_class = eval(self.cfg["algorithm_class_name"]) # PPO
         self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
-        self.num_steps_per_env = self.cfg["num_steps_per_env"]
-        self.save_interval = self.cfg["save_interval"]
-
-        # init storage and model
-        self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.num_privileged_obs], [self.env.num_actions])
-
-        # Log
-        self.log_dir = log_dir
-        self.sync_wandb = self.cfg["sync_wandb"] if "sync_wandb" in self.cfg else False
-        self.writer = None
-        self.tot_timesteps = 0
-        self.tot_time = 0
-        self.current_learning_iteration = 0
-
-        _, _ = self.env.reset()
+    
+    def _init_storage(self):
+        self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, 
+                              [self.env.num_obs], [self.env.num_privileged_obs], 
+                              [self.env.num_actions])
     
     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
-        # initialize writer
-        if self.log_dir is not None and self.writer is None:
-            if self.sync_wandb:
-                wandb.init(
-                    project="genesis_lr",
-                    name=self.wandb_run_name,
-                    sync_tensorboard=True,
-                    config=self.all_cfg,
-                )
-            self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
-        if init_at_random_ep_len:
-            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
+        self._pre_learn(init_at_random_ep_len)
         obs = self.env.get_observations()
         privileged_obs = self.env.get_privileged_observations()
         critic_obs = privileged_obs if privileged_obs is not None else obs
@@ -159,6 +154,20 @@ class OnPolicyRunner:
         self.current_learning_iteration += num_learning_iterations
         self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(self.current_learning_iteration)))
 
+    def _pre_learn(self, init_at_random_ep_len):
+        # initialize writer
+        if self.log_dir is not None and self.writer is None:
+            if self.sync_wandb:
+                wandb.init(
+                    project="LeggedGym-Ex",
+                    name=self.wandb_run_name,
+                    sync_tensorboard=True,
+                    config=self.all_cfg,
+                )
+            self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
+        if init_at_random_ep_len:
+            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
+    
     def log(self, locs, width=80, pad=35):
         self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
         self.tot_time += locs['collection_time'] + locs['learn_time']
