@@ -157,9 +157,9 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
     
-    class sensor( LeggedRobotCfg.sensor ):
+    class sensor( LeggedRobotTSCfg.sensor ):
         add_depth = True
-        class depth_camera_config( LeggedRobotCfg.sensor.depth_camera_config ):
+        class depth_camera_config( LeggedRobotTSCfg.sensor.depth_camera_config ):
             near_clip = 0.175
             far_clip = 2.0
             near_plane = 0.1

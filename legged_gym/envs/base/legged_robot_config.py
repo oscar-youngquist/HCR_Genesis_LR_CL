@@ -77,6 +77,7 @@ class LeggedRobotCfg(BaseConfig):
         # Common
         name = None
         file = ""
+        usd_file = ""
         foot_name = "None"     # name of the feet bodies, used to index body state and contact force tensors
         penalize_contacts_on = []
         terminate_after_contacts_on = []
@@ -95,7 +96,7 @@ class LeggedRobotCfg(BaseConfig):
         replace_cylinder_with_capsule = False # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
         density = 0.001
-        angular_damping = 0.
+        angular_damping = 0.01
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.

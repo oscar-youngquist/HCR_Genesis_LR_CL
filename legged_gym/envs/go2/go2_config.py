@@ -12,9 +12,10 @@ class GO2Cfg( LeggedRobotCfg ):
     
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = "plane" # none, plane, heightfield
+        plane_length = 100.0
         
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.42] # x,y,z [m]
+        pos = [0.0, 0.0, 0.45] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'FL_hip_joint': 0.0,   # [rad]
             'RL_hip_joint': 0.0,   # [rad]
@@ -44,8 +45,10 @@ class GO2Cfg( LeggedRobotCfg ):
         # Common
         name = "go2"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
+        usd_file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/usd/go2.usd'
         foot_name = "foot"
-        penalize_contacts_on = ["thigh", "calf"]
+        penalize_contacts_on = [
+            "thigh", "calf"]
         terminate_after_contacts_on = ["base"]
         # For Genesis
         dof_names = [           # align with the real robot
@@ -65,6 +68,8 @@ class GO2Cfg( LeggedRobotCfg ):
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
         # For IsaacGym
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
+        fix_base_link = False
+        
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.36
@@ -74,7 +79,7 @@ class GO2Cfg( LeggedRobotCfg ):
         only_positive_rewards = True
         class scales( LeggedRobotCfg.rewards.scales ):
             # limitation
-            dof_pos_limits = -10.0
+            dof_pos_limits = -1.0
             collision = -1.0
             # command tracking
             tracking_lin_vel = 1.0

@@ -27,17 +27,28 @@ class GO2(LeggedRobot):
                               device=self.device, requires_grad=False)
         dof_vel = torch.zeros((len(env_ids), self.num_actions), dtype=torch.float, 
                               device=self.device, requires_grad=False)
-        dof_pos[:, [0, 3, 6, 9]] = self.simulator.default_dof_pos[:, [0, 3, 6, 9]] + \
+        # dof_pos[:, [0, 3, 6, 9]] = self.simulator.default_dof_pos[:, [0, 3, 6, 9]] + \
+        #     torch_rand_float(-0.2, 0.2, (len(env_ids), 4), self.device)
+        # dof_pos[:, [1, 4, 7, 10]] = self.simulator.default_dof_pos[:, [1, 4, 7, 10]] + \
+        #     torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
+        # dof_pos[:, [2, 5, 8, 11]] = self.simulator.default_dof_pos[:, [2, 5, 8, 11]] + \
+        #     torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
+        dof_pos[:, [0,1,2,3]] = self.simulator.default_dof_pos[:, [0,1,2,3]] + \
             torch_rand_float(-0.2, 0.2, (len(env_ids), 4), self.device)
-        dof_pos[:, [1, 4, 7, 10]] = self.simulator.default_dof_pos[:, [1, 4, 7, 10]] + \
+        dof_pos[:, [4,5,6,7]] = self.simulator.default_dof_pos[:, [4,5,6,7]] + \
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
-        dof_pos[:, [2, 5, 8, 11]] = self.simulator.default_dof_pos[:, [2, 5, 8, 11]] + \
+        dof_pos[:, [8,9,10,11]] = self.simulator.default_dof_pos[:, [8,9,10,11]] + \
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
 
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
     
     # Override functions for deployment
     def compute_observations(self):
+        # print(f"project gravity: {self.simulator.projected_gravity}")
+        # print(f"base ang vel: {self.simulator.base_ang_vel}")
+        # print(f"dof pos: {self.simulator.dof_pos}")
+        # print(f"dof vel: {self.simulator.dof_vel}")
+        # print(f"actions: {self.actions}")
         self.obs_buf = torch.cat((
                                 self.commands[:, :3] * self.commands_scale,                   # 3
                                 self.simulator.projected_gravity,                             # 3
@@ -109,3 +120,20 @@ class GO2(LeggedRobot):
         if self.cfg.terrain.measure_heights:
             noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
         return noise_vec
+    
+    def _reset_root_states(self, env_ids):
+        # base pos
+        if self.simulator.custom_origins:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+            base_pos[:, :2] += torch_rand_float(-0.5, 0.5, (len(env_ids), 2), device=self.device) # xy position within 1m of the center
+        else:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+        # base quat
+        base_quat = self.simulator.base_init_quat.reshape(1, -1).repeat(len(env_ids), 1)
+        # base lin vel
+        base_lin_vel = torch_rand_float(-0.0, 0.0, (len(env_ids), 3), self.device)
+        # base ang vel
+        base_ang_vel = torch_rand_float(-0.0, 0.0, (len(env_ids), 3), self.device)
+        self.simulator.reset_root_states(env_ids, base_pos, base_quat, base_lin_vel, base_ang_vel)
