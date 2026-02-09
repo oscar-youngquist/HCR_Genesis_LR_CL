@@ -281,14 +281,7 @@ class TRON1SF(LeggedRobot):
     def _reward_no_fly(self):
         contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.0
         single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact * (torch.norm(self.commands[:, :3], dim=1) > 0.1) # only activate when moving
-    
-    def _reward_full_contact_stand_still(self):
-        """Encourage all feet in contact when standing still
-        """
-        contacts = self.simulator.link_contact_forces[:, self.simulator.feet_indices, 2] > 1.0
-        all_contact = torch.sum(1.*contacts, dim=1)==len(self.simulator.feet_indices)
-        return 1.*all_contact * (torch.norm(self.commands[:, :3], dim=1) < 0.1) # only activate when not moving
+        return 1.*single_contact
     
     def _reward_hip_pos_zero_command(self):
         """Penalize hip joint deviation from default position when no command is given

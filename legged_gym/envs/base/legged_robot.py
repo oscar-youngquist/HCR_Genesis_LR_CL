@@ -334,8 +334,8 @@ class LeggedRobot(BaseTask):
             self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
         
         # set small commands to zero
-        self.commands[env_ids, :2] *= (torch.norm(
-            self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+        self.commands[env_ids, :3] *= (torch.norm(
+            self.commands[env_ids, :3], dim=1) > 0.2).unsqueeze(1)
 
     def update_command_curriculum(self, env_ids):
         """ Implements a curriculum of increasing commands

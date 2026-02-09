@@ -208,10 +208,10 @@ class LeggedRobotCfg(BaseConfig):
     # sensor configuration:
     class sensor:
         add_depth = False
+        use_warp = False       # whether to use warp-based depth camera model
         class depth_camera_config:
             num_sensors = 1
             num_history = 1        # history frames for depth images
-            use_warp = False       # whether to use warp-based depth camera model
             near_clip = 0.1
             far_clip = 10.0
             near_plane = 0.1

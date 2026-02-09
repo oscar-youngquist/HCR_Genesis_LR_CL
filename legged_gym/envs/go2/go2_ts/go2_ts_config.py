@@ -156,18 +156,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         joint_friction_range = [0.01, 0.02]
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
-    
-    class sensor( LeggedRobotCfg.sensor ):
-        add_depth = True
-        class depth_camera_config( LeggedRobotCfg.sensor.depth_camera_config ):
-            near_clip = 0.175
-            far_clip = 2.0
-            near_plane = 0.1
-            far_plane = 10.0
-            resolution = (160, 120)
-            horizontal_fov_deg = 75
-            pos = (0.33, 0.0, 0.1)
-            euler = (0.0, 1.87, 0.0) # the default camera frame is the same as world frame(x-forward, y-left, z-up)
 
 class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
     seed = 1

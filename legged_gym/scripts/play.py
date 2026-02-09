@@ -55,6 +55,11 @@ def override_configs(env_cfg, args):
     
     if args.use_joystick:
         env_cfg.commands.heading_command = False
+    
+    env_cfg.commands.ranges.lin_vel_x = [0.0, 0.0]
+    env_cfg.commands.ranges.lin_vel_y = [0.0, 0.0]
+    env_cfg.commands.ranges.ang_vel_yaw = [0.0, 0.0]
+    env_cfg.commands.ranges.heading = [0.0, 0.0]
 
 def print_debug_info(env, robot_index):
     """Print debug information while interacting
@@ -213,6 +218,7 @@ def play(args):
     export_policy(ppo_runner, path, args, env_cfg, train_cfg)
 
     interaction_loop(env, policy, args)
+    
     
 if __name__ == '__main__':
     args = get_args()

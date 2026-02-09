@@ -155,7 +155,7 @@ def get_args():
     parser.add_argument('--ckpt',           type=int, default=-1, help="checkpoint to load, -1 means latest")
     parser.add_argument('--use_joystick',   action='store_true', default=False, help="use joystick to provide commands")
     parser.add_argument('--joystick_type',  type=str, default='xbox', help="type of joystick: xbox, switch")
-
+    
     return parser.parse_args()
 
 # def export_policy_as_jit(actor_critic, path, prefix=None):

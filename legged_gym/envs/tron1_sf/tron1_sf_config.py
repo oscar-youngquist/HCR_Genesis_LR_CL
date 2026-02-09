@@ -3,7 +3,6 @@ from legged_gym import SIMULATOR
 
 # TRON1 Sole Foot
 class TRON1SFCfg( LeggedRobotCfg ):
-    
     class env( LeggedRobotCfg.env ):
         num_envs = 4096
         num_single_obs = 33
@@ -115,7 +114,7 @@ class TRON1SFCfg( LeggedRobotCfg ):
             tracking_ang_vel = 1.0
             # smooth
             lin_vel_z = -0.5
-            base_height = -3.0
+            base_height = -4.0
             ang_vel_xy = -0.05
             orientation = -5.0
             dof_power = -2.e-4
@@ -144,12 +143,12 @@ class TRON1SFCfg( LeggedRobotCfg ):
 
     class domain_rand( LeggedRobotCfg.domain_rand ):
         randomize_friction = True
-        friction_range = [0.5, 1.25]
+        friction_range = [0.0, 2.0]
         randomize_base_mass = True
         added_mass_range = [-0.5, 1.]
         push_robots = True
         push_interval_s = 10
-        max_push_vel_xy = 0.5
+        max_push_vel_xy = 1.0
         randomize_com_displacement = True
         com_pos_x_range = [-0.03, 0.03]
         com_pos_y_range = [-0.03, 0.03]

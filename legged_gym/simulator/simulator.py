@@ -874,7 +874,7 @@ class IsaacGymSimulator(Simulator):
         self.physics_engine = gymapi.SIM_PHYSX
         super().__init__(cfg, sim_params, sim_device, headless)
         # warp init
-        if self.cfg.env.use_warp:
+        if self.cfg.sensor.use_warp:
             assert self.cfg.sensor.add_depth, "Depth sensor is required for warp"
             wp.init()
             self._create_warp_envs()
@@ -1226,7 +1226,7 @@ class IsaacGymSimulator(Simulator):
         if self.cfg.asset.obtain_link_contact_states:
             self.link_contact_states = 1. * (torch.norm(
                 self.link_contact_forces[:, self.contact_state_link_indices, :], dim=-1) > 1.)
-        if self.cfg.env.use_warp:
+        if self.cfg.sensor.use_warp:
             # Refresh warp sensor pose
             sensor_quat = quat_mul(self.base_quat, self.sensor_offset_quat)
             sensor_pos = self.base_pos + quat_apply(self.base_quat, self.sensor_offset_pos)
@@ -1236,7 +1236,7 @@ class IsaacGymSimulator(Simulator):
     def update_depth_images(self):
         """ Update depth images from the depth camera sensors
         """
-        if self.cfg.env.use_warp:
+        if self.cfg.sensor.use_warp:
             pixels = self.sensor.update()
             self.depth_images[:, 0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
             if self.cfg.sensor.depth_camera_config.calculate_depth:
