@@ -312,7 +312,7 @@ class Go2TSDepth(LeggedRobot):
                 0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
 
         if self.cfg.terrain.measure_heights:
-            self.simulator.get_heights()
+            self.simulator.update_surrounding_heights()
             if self.cfg.terrain.obtain_terrain_info_around_feet:
                 self.simulator.calc_terrain_info_around_feet()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):

@@ -16,6 +16,20 @@ elif sys.version_info[1] <= 8 and sys.version_info[1] >= 6: # >=3.6 and <3.9 for
     SIMULATOR = "isaacgym"
 
 if SIMULATOR == "genesis":
-    import genesis as gs
+    try: 
+        import genesis as gs
+    except ImportError as e:
+        print("Failed to import Genesis. Please ensure that the Genesis is properly installed and configured.")
+        raise e
 elif SIMULATOR == "isaacgym":
-    import isaacgym
+    try:
+        import isaacgym
+    except ImportError as e:
+        print("Failed to import Isaac Gym. Please ensure that the Isaac Gym is properly installed and configured.")
+        raise e
+elif SIMULATOR == "isaaclab":
+    try:
+        import isaaclab
+    except ImportError as e:
+        print("Failed to import Isaac Lab. Please ensure that the Isaac Lab is properly installed and configured.")
+        raise e

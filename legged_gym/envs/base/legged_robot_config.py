@@ -78,12 +78,15 @@ class LeggedRobotCfg(BaseConfig):
         name = None
         file = ""
         usd_file = ""
-        foot_name = "None"     # name of the feet bodies, used to index body state and contact force tensors
+        # name of the feet bodies, bodies containing this substring will be considered as feet
+        foot_name = ""
         penalize_contacts_on = []
         terminate_after_contacts_on = []
         fix_base_link = False    # fix base link to the world
         obtain_link_contact_states = False
         contact_state_link_names = ["thigh", "calf", "foot"]
+        # full name of the base link
+        base_link_name = ""  
         # For Genesis
         links_to_keep = []          # links that are not merged because of fixed joints
         dof_names = ["joint_a", "joint_b"]
@@ -209,10 +212,11 @@ class LeggedRobotCfg(BaseConfig):
     # sensor configuration:
     class sensor:
         add_depth = False
+        use_warp = False       # whether to use warp-based model
         class depth_camera_config:
             num_sensors = 1
             num_history = 1        # history frames for depth images
-            use_warp = False       # whether to use warp-based depth camera model
+            
             near_clip = 0.1
             far_clip = 10.0
             near_plane = 0.1

@@ -50,6 +50,8 @@ class GO2Cfg( LeggedRobotCfg ):
         penalize_contacts_on = [
             "thigh", "calf"]
         terminate_after_contacts_on = ["base"]
+        # full name of the base link
+        base_link_name = "base"
         # For Genesis
         dof_names = [           # align with the real robot
             "FR_hip_joint",

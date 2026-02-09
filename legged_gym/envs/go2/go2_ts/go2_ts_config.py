@@ -18,7 +18,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         num_actions = 12
         env_spacing = 0.5
-        use_warp = True
     
     class terrain( LeggedRobotTSCfg.terrain ):
         if SIMULATOR == "genesis":

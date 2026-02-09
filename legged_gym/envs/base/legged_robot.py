@@ -314,7 +314,7 @@ class LeggedRobot(BaseTask):
                                                                  self.cfg.commands.ranges.ang_vel_yaw[1])
 
         if self.cfg.terrain.measure_heights:
-            self.simulator.get_heights()
+            self.simulator.update_surrounding_heights()
             if self.cfg.terrain.obtain_terrain_info_around_feet:
                 self.simulator.calc_terrain_info_around_feet()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):

@@ -18,7 +18,6 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         num_actions = 12
         env_spacing = 0.5
-        use_warp = True               # whether to use warp for sensors(lidar, camera, etc.)
     
     class terrain( LeggedRobotCfg.terrain ):
         if SIMULATOR == "genesis":
