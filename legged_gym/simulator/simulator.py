@@ -115,6 +115,7 @@ class Simulator(ABC):
         """
         return
     
+    #----- Properties -----#
     @property
     def feet_indices(self):
         """Returns the indices of the feet links in the robot articulation.
@@ -132,3 +133,21 @@ class Simulator(ABC):
             list[int]: Indices of the feet links in the contact sensors.
         """
         return self._feet_contact_indices
+    
+    @property
+    def termination_contact_indices(self):
+        """Returns the indices of the links in the contact sensors that are used for termination checking.
+
+        Returns:
+            list[int]: Indices of the links in the contact sensors for termination checking.
+        """
+        return self._termination_contact_indices
+    
+    @property
+    def penalized_contact_indices(self):
+        """Returns the indices of the links in the contact sensors that are used for penalty.
+
+        Returns:
+            list[int]: Indices of the links in the contact sensors for penalty.
+        """
+        return self._penalized_contact_indices

@@ -211,7 +211,6 @@ class IsaacLabSimulator(Simulator):
         print(f"DOF names: {self.dof_names}")
         self.num_dof = len(self.dof_names)
         self.num_bodies = len(self.robot.body_names)
-        self._init_domain_params()
         
         def find_link_contact_indices(names: list[str]) -> list[int]:
             """find link indices in bodies of contact sensors based on link names specified in the config for termination and penalty.
@@ -288,12 +287,13 @@ class IsaacLabSimulator(Simulator):
                 m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
             )
         
+        self._init_domain_params()
         # randomize friction
         if self.cfg.domain_rand.randomize_friction:
             self._randomize_friction(torch.arange(self.num_envs))
         # randomize base mass
         if self.cfg.domain_rand.randomize_base_mass:
-            self._randomize_base_mass(np.arange(self.num_envs))
+            self._randomize_base_mass(torch.arange(self.num_envs))
         # # randomize COM displacement
         # if self.cfg.domain_rand.randomize_com_displacement:
         #     self._randomize_com_displacement(np.arange(self.num_envs))
@@ -456,7 +456,7 @@ class IsaacLabSimulator(Simulator):
 
         self.measured_heights = heights.view(self.num_envs, -1) * self.cfg.terrain.vertical_scale
 
-    def push_robots(self):
+    def _push_robots(self):
         max_push_vel_xy = self.cfg.domain_rand.max_push_vel_xy
         cur_root_vel = self.robot.data.root_link_vel_w[:, :3]
         push_vel = torch_rand_float(-max_push_vel_xy,
@@ -564,7 +564,7 @@ class IsaacLabSimulator(Simulator):
         # save original base mass for the first time
         self._default_base_mass = torch.ones(
             self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False) * \
-                self.robot.data.default_mass[:, self._base_link_index].unsqueeze(1)
+                self.robot.data.default_mass[:, self._base_link_index].unsqueeze(1).to(self.device)
         self._added_base_mass = torch.ones(
             self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
         self._rand_push_vels = torch.zeros(
@@ -631,32 +631,37 @@ class IsaacLabSimulator(Simulator):
         min_friction, max_friction = self.cfg.domain_rand.friction_range
 
         # refer to https://docs.omniverse.nvidia.com/kit/docs/omni_physics/latest/extensions/runtime/source/omni.physics.tensors/docs/api/python.html#omni.physics.tensors.impl.api.ArticulationView.set_material_properties
-        articulation_view = self.robot.root_physx_view
         # All shapes in the same env have the same static friction and dynamic friction values
         friction_ratios = torch.rand((len(env_ids), 1, 1), 
                             dtype=torch.float,
-                            device=self.device).repeat(1, articulation_view.max_shapes, 2) \
+                            device=self.device).repeat(1, self.robot.root_physx_view.max_shapes, 2) \
                             * (max_friction - min_friction) + min_friction
         # save values to domain randomization params
         self._friction_values[env_ids] = friction_ratios[:,0,0].unsqueeze(1).detach().clone()
         
-        raw_material_props = articulation_view.get_material_properties()
-        target_material_props = torch.cat((
-            friction_ratios.to("cpu"),
-            raw_material_props[:, :, 2].unsqueeze(-1), # use original restitution
-        ), dim=-1)
+        raw_material_props = self.robot.root_physx_view.get_material_properties().to(self.device)
+        target_material_props = raw_material_props.clone()
+        target_material_props[env_ids, :, 0:2] = friction_ratios[:]
+        all_indices = torch.arange(self.robot.root_physx_view.count, device="cpu")
         # tensors passed to set_material_properties must be on CPU
-        articulation_view.set_material_properties(
-            target_material_props, env_ids.to("cpu")
+        self.robot.root_physx_view.set_material_properties(
+            target_material_props.to('cpu'), all_indices
         )
     
     def _randomize_base_mass(self, env_ids):
         if len(env_ids) == 0:
             return
         min_mass, max_mass = self.cfg.domain_rand.added_mass_range
-        base_link_id = 1
-        added_mass = gs.rand((len(env_ids), 1), dtype=float) * \
-            (max_mass - min_mass) + min_mass
+        # refer to https://docs.omniverse.nvidia.com/kit/docs/omni_physics/latest/extensions/runtime/source/omni.physics.tensors/docs/api/python.html#omni.physics.tensors.impl.api.ArticulationView.set_masses
+        added_mass = torch.rand((len(env_ids), 1), 
+                                dtype=torch.float,
+                                device=self.device) * \
+                        (max_mass - min_mass) + min_mass
         self._added_base_mass[env_ids] = added_mass[:].detach().clone()
-        self.robot.set_mass_shift(added_mass, [base_link_id, ], env_ids)
-        
+        raw_mass = self.robot.root_physx_view.get_masses().to(self.device)
+        base_mass_after_dr = self._default_base_mass[env_ids] + added_mass
+        mass_after_dr = raw_mass.clone()
+        mass_after_dr[env_ids, self._base_link_index] = base_mass_after_dr.squeeze(1)
+        all_indices = torch.arange(self.robot.root_physx_view.count, device="cpu")
+        # tensors passed to set_masses must be on CPU
+        self.robot.root_physx_view.set_masses(mass_after_dr.to("cpu"), all_indices)
