@@ -311,7 +311,7 @@ class LeggedRobotNav(BaseTask):
         if self.cfg.terrain.measure_heights:
             self.simulator.update_surrounding_heights()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
-            self.simulator.push_robots()
+            self.simulator._push_robots()
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments

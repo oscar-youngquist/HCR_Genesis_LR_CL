@@ -516,28 +516,10 @@ class GenesisSimulator(Simulator):
     # ------------- Callbacks --------------
 
     def _init_height_points(self):
-        """ Returns points at which the height measurments are sampled (in base frame)
-
-        Returns:
-            [torch.Tensor]: Tensor of shape (num_envs, self.num_height_points, 3)
-        """
         y = torch.tensor(self.cfg.terrain.measured_points_y,
                          device=self.device, requires_grad=False)
         x = torch.tensor(self.cfg.terrain.measured_points_x,
                          device=self.device, requires_grad=False)
-        
-        # Get index of 4 points around robot base
-        self.num_x_points = x.shape[0]
-        self.num_y_points = y.shape[0]
-        self.front_point_index = (self.num_x_points // 2 + 2) * self.num_y_points \
-            + (self.num_y_points - 1) // 2 # [base_pos_x+2*horizontal_scale, base_pos_y]
-        self.rear_point_index = (self.num_x_points // 2 - 2) * self.num_y_points \
-            + (self.num_y_points - 1) // 2 # [base_pos_x-2*horizontal_scale, base_pos_y]
-        self.left_point_index = self.num_x_points // 2 * self.num_y_points \
-            + self.num_y_points // 2 + 1   # [base_pos_x, base_pos_y+horizontal_scale]
-        self.right_point_index = self.num_x_points // 2 * self.num_y_points \
-            + self.num_y_points // 2 - 1   # [base_pos_x, base_pos_y-horizontal_scale]
-        
         grid_x, grid_y = torch.meshgrid(x, y, indexing='ij')
 
         self.num_height_points = grid_x.numel()

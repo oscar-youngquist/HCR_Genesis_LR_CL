@@ -316,7 +316,7 @@ class Go2TSDepth(LeggedRobot):
             if self.cfg.terrain.obtain_terrain_info_around_feet:
                 self.simulator.calc_terrain_info_around_feet()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
-            self.simulator.push_robots()
+            self.simulator._push_robots()
     
     def _get_noise_scale_vec(self):
         """ Sets a vector used to scale the noise added to the observations.
