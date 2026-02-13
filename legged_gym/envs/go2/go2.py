@@ -27,17 +27,11 @@ class GO2(LeggedRobot):
                               device=self.device, requires_grad=False)
         dof_vel = torch.zeros((len(env_ids), self.num_actions), dtype=torch.float, 
                               device=self.device, requires_grad=False)
-        # dof_pos[:, [0, 3, 6, 9]] = self.simulator.default_dof_pos[:, [0, 3, 6, 9]] + \
-        #     torch_rand_float(-0.2, 0.2, (len(env_ids), 4), self.device)
-        # dof_pos[:, [1, 4, 7, 10]] = self.simulator.default_dof_pos[:, [1, 4, 7, 10]] + \
-        #     torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
-        # dof_pos[:, [2, 5, 8, 11]] = self.simulator.default_dof_pos[:, [2, 5, 8, 11]] + \
-        #     torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
-        dof_pos[:, [0,1,2,3]] = self.simulator.default_dof_pos[:, [0,1,2,3]] + \
+        dof_pos[:, [0, 3, 6, 9]] = self.simulator.default_dof_pos[:, [0, 3, 6, 9]] + \
             torch_rand_float(-0.2, 0.2, (len(env_ids), 4), self.device)
-        dof_pos[:, [4,5,6,7]] = self.simulator.default_dof_pos[:, [4,5,6,7]] + \
+        dof_pos[:, [1, 4, 7, 10]] = self.simulator.default_dof_pos[:, [1, 4, 7, 10]] + \
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
-        dof_pos[:, [8,9,10,11]] = self.simulator.default_dof_pos[:, [8,9,10,11]] + \
+        dof_pos[:, [2, 5, 8, 11]] = self.simulator.default_dof_pos[:, [2, 5, 8, 11]] + \
             torch_rand_float(-0.4, 0.4, (len(env_ids), 4), self.device)
 
         self.simulator.reset_dofs(env_ids, dof_pos, dof_vel)
@@ -46,7 +40,8 @@ class GO2(LeggedRobot):
     def compute_observations(self):
         # print(f"project gravity: {self.simulator.projected_gravity}")
         # print(f"base ang vel: {self.simulator.base_ang_vel}")
-        # print(f"dof pos: {self.simulator.dof_pos}")
+        # print(f"dof pos: {self.simulator.dof_pos[0]}")
+        # print(f"default dof pos: {self.simulator.default_dof_pos}")
         # print(f"dof vel: {self.simulator.dof_vel}")
         # print(f"actions: {self.actions}")
         self.obs_buf = torch.cat((

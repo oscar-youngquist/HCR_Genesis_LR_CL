@@ -7,9 +7,9 @@
       <inertia ixx="0.02448" ixy="0.00012166" ixz="0.0014849" iyy="0.098077" iyz="-3.12E-05" izz="0.107" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/base.dae" />
+        <mesh filename="../meshes/base.stl" />
       </geometry>
       <material name="深色橡胶_001-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="白色logo_001-effect"><color rgba="1 1 1 1" /></material><material name="黑色贴纸_007-effect"><color rgba="0.009018 0.009018 0.009018 1" /></material><material name="黑色金属_007-effect"><color rgba="0.01341 0.01341 0.01341 1" /></material><material name="黑色塑料_003-effect"><color rgba="0.023455 0.023455 0.023455 1" /></material></visual>
     <collision>
@@ -64,9 +64,9 @@
       <inertia ixx="0.00048" ixy="-3.01E-06" ixz="1.11E-06" iyy="0.000884" iyz="-1.42E-06" izz="0.000596" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/hip.dae" />
+        <mesh filename="../meshes/hip.stl" />
       </geometry>
       <material name="深色橡胶_001-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -102,9 +102,9 @@
       <inertia ixx="0.00584" ixy="8.72E-05" ixz="-0.000289" iyy="0.0058" iyz="0.000808" izz="0.00103" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/thigh.dae" />
+        <mesh filename="../meshes/thigh.stl" />
       </geometry>
       <material name="深色橡胶_003-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material_009-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -140,9 +140,9 @@
       <inertia ixx="0.00108" ixy="3.4E-07" ixz="1.72E-05" iyy="0.0011" iyz="8.28E-06" izz="3.29E-05" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/calf.dae" />
+        <mesh filename="../meshes/calf.stl" />
       </geometry>
       <material name="黑色足端_005-effect"><color rgba="0 0 0 1" /></material><material name="深色橡胶_005-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material></visual>
     <collision>
@@ -206,9 +206,9 @@
       <inertia ixx="9.6e-06" ixy="0" ixz="0" iyy="9.6e-06" iyz="0" izz="9.6e-06" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/foot.dae" />
+        <mesh filename="../meshes/foot.stl" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
     <collision>
@@ -231,9 +231,9 @@
       <inertia ixx="0.00048" ixy="3.01E-06" ixz="1.11E-06" iyy="0.000884" iyz="1.42E-06" izz="0.000596" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="3.1415 0 0" />
+      <origin xyz="0 0 0" rpy="1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/hip.dae" />
+        <mesh filename="../meshes/hip.stl" />
       </geometry>
       <material name="深色橡胶_001-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -269,9 +269,9 @@
       <inertia ixx="0.00584" ixy="-8.72E-05" ixz="-0.000289" iyy="0.0058" iyz="-0.000808" izz="0.00103" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/thigh_mirror.dae" />
+        <mesh filename="../meshes/thigh_mirror.stl" />
       </geometry>
       <material name="深色橡胶_012-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material_011-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -307,9 +307,9 @@
       <inertia ixx="0.00108" ixy="-3.4E-07" ixz="1.72E-05" iyy="0.0011" iyz="-8.28E-06" izz="3.29E-05" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/calf_mirror.dae" />
+        <mesh filename="../meshes/calf_mirror.stl" />
       </geometry>
       <material name="黑色足端_006-effect"><color rgba="0 0 0 1" /></material><material name="深色橡胶_007-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material></visual>
     <collision>
@@ -373,9 +373,9 @@
       <inertia ixx="9.6e-06" ixy="0" ixz="0" iyy="9.6e-06" iyz="0" izz="9.6e-06" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/foot.dae" />
+        <mesh filename="../meshes/foot.stl" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
     <collision>
@@ -398,9 +398,9 @@
       <inertia ixx="0.00048" ixy="3.01E-06" ixz="-1.11E-06" iyy="0.000884" iyz="-1.42E-06" izz="0.000596" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 3.1415 0" />
+      <origin xyz="0 0 0" rpy="-1.57 3.1415 0" />
       <geometry>
-        <mesh filename="../dae/hip.dae" />
+        <mesh filename="../meshes/hip.stl" />
       </geometry>
       <material name="深色橡胶_001-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -436,9 +436,9 @@
       <inertia ixx="0.00584" ixy="8.72E-05" ixz="-0.000289" iyy="0.0058" iyz="0.000808" izz="0.00103" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/thigh.dae" />
+        <mesh filename="../meshes/thigh.stl" />
       </geometry>
       <material name="深色橡胶_003-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material_009-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -474,9 +474,9 @@
       <inertia ixx="0.00108" ixy="3.4E-07" ixz="1.72E-05" iyy="0.0011" iyz="8.28E-06" izz="3.29E-05" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/calf.dae" />
+        <mesh filename="../meshes/calf.stl" />
       </geometry>
       <material name="黑色足端_005-effect"><color rgba="0 0 0 1" /></material><material name="深色橡胶_005-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material></visual>
     <collision>
@@ -540,9 +540,9 @@
       <inertia ixx="9.6e-06" ixy="0" ixz="0" iyy="9.6e-06" iyz="0" izz="9.6e-06" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/foot.dae" />
+        <mesh filename="../meshes/foot.stl" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
     <collision>
@@ -565,9 +565,9 @@
       <inertia ixx="0.00048" ixy="-3.01E-06" ixz="-1.11E-06" iyy="0.000884" iyz="1.42E-06" izz="0.000596" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="3.1415 3.1415 0" />
+      <origin xyz="0 0 0" rpy="1.57 3.1415 0" />
       <geometry>
-        <mesh filename="../dae/hip.dae" />
+        <mesh filename="../meshes/hip.stl" />
       </geometry>
       <material name="深色橡胶_001-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -603,9 +603,9 @@
       <inertia ixx="0.00584" ixy="-8.72E-05" ixz="-0.000289" iyy="0.0058" iyz="-0.000808" izz="0.00103" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/thigh_mirror.dae" />
+        <mesh filename="../meshes/thigh_mirror.stl" />
       </geometry>
       <material name="深色橡胶_012-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material><material name="Material_011-effect"><color rgba="0.9 0.95 0.95 1" /></material></visual>
     <collision>
@@ -641,9 +641,9 @@
       <inertia ixx="0.00108" ixy="-3.4E-07" ixz="1.72E-05" iyy="0.0011" iyz="-8.28E-06" izz="3.29E-05" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/calf_mirror.dae" />
+        <mesh filename="../meshes/calf_mirror.stl" />
       </geometry>
       <material name="黑色足端_006-effect"><color rgba="0 0 0 1" /></material><material name="深色橡胶_007-effect"><color rgba="0.6717055 0.6924257 0.7742702 1" /></material></visual>
     <collision>
@@ -707,9 +707,9 @@
       <inertia ixx="9.6e-06" ixy="0" ixz="0" iyy="9.6e-06" iyz="0" izz="9.6e-06" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="-1.57 0 0" />
       <geometry>
-        <mesh filename="../dae/foot.dae" />
+        <mesh filename="../meshes/foot.stl" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
     <collision>

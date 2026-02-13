@@ -232,13 +232,10 @@ class LeggedRobotNav(BaseTask):
                     1) - 0.5 - self.simulator.measured_heights, -1, 1.) * self.obs_scales.height_measurements
                 self.privileged_obs_buf = torch.cat((self.privileged_obs_buf, heights), dim=-1)
 
-    def set_camera(self, pos, lookat):
-        """ Set camera position and direction
+    def set_viewer_camera(self, pos, lookat):
+        """ Set viewer camera position and direction
         """
-        self.floating_camera.set_pose(
-            pos=pos,
-            lookat=lookat
-        )
+        self.simulator.set_viewer_camera(eye=pos, target=lookat)
 
     # ------------- Callbacks --------------
     

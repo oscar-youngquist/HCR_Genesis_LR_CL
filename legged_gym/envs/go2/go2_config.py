@@ -15,22 +15,22 @@ class GO2Cfg( LeggedRobotCfg ):
         plane_length = 100.0
         
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 0.45] # x,y,z [m]
+        pos = [0.0, 0.0, 0.42] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'FL_hip_joint': 0.0,   # [rad]
             'RL_hip_joint': 0.0,   # [rad]
             'FR_hip_joint': 0.0 ,  # [rad]
             'RR_hip_joint': 0.0,   # [rad]
 
-            'FL_thigh_joint': 0.8,     # [rad]
-            'RL_thigh_joint': 0.8,   # [rad]
-            'FR_thigh_joint': 0.8,     # [rad]
-            'RR_thigh_joint': 0.8,   # [rad]
+            'FL_thigh_joint': 0.8, # [rad]
+            'RL_thigh_joint': 0.8, # [rad]
+            'FR_thigh_joint': 0.8, # [rad]
+            'RR_thigh_joint': 0.8, # [rad]
 
-            'FL_calf_joint': -1.5,   # [rad]
-            'RL_calf_joint': -1.5,    # [rad]
-            'FR_calf_joint': -1.5,  # [rad]
-            'RR_calf_joint': -1.5,    # [rad]
+            'FL_calf_joint': -1.5, # [rad]
+            'RL_calf_joint': -1.5, # [rad]
+            'FR_calf_joint': -1.5, # [rad]
+            'RR_calf_joint': -1.5, # [rad]
         }
 
     class control( LeggedRobotCfg.control ):
@@ -45,14 +45,11 @@ class GO2Cfg( LeggedRobotCfg ):
         # Common
         name = "go2"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
-        usd_file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/usd/go2.usd'
         foot_name = "foot"
-        penalize_contacts_on = [
-            "thigh", "calf"]
-        terminate_after_contacts_on = ["base"]
+        penalize_contacts_on = ["thigh", "calf"]
+        terminate_after_contacts_on = ["base", "Head"]
         # full name of the base link
         base_link_name = "base"
-        # For Genesis
         dof_names = [           # align with the real robot
             "FR_hip_joint",
             "FR_thigh_joint",
@@ -67,7 +64,12 @@ class GO2Cfg( LeggedRobotCfg ):
             "RL_thigh_joint",
             "RL_calf_joint"
         ]
+        # For Genesis
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
+        dof_vel_limits = [30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7]
         # For IsaacGym
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         fix_base_link = False
@@ -132,8 +134,8 @@ class GO2CfgPPO( LeggedRobotCfgPPO ):
             run_name += '_genesis'
         elif SIMULATOR == "isaacgym":
             run_name += '_isaacgym'
+        elif SIMULATOR == "isaaclab":
+            run_name += '_isaaclab'
         experiment_name = 'go2'
         save_interval = 200
-        load_run = "Jan05_09-43-56_simple_rl_genesis"
-        checkpoint = -1
         max_iterations = 1500

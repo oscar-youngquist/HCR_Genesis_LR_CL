@@ -77,7 +77,6 @@ class LeggedRobotCfg(BaseConfig):
         # Common
         name = None
         file = ""
-        usd_file = ""
         # name of the feet bodies, bodies containing this substring will be considered as feet
         foot_name = ""
         penalize_contacts_on = []
@@ -85,21 +84,20 @@ class LeggedRobotCfg(BaseConfig):
         fix_base_link = False    # fix base link to the world
         obtain_link_contact_states = False
         contact_state_link_names = ["thigh", "calf", "foot"]
-        # full name of the base link
-        base_link_name = ""  
+        base_link_name = "" # full name of the base link
+        self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
+        dof_names = ["joint_a", "joint_b"] # specify the sequence of dofs in the actions and observations
         # For Genesis
         links_to_keep = []          # links that are not merged because of fixed joints
-        dof_names = ["joint_a", "joint_b"]
-        self_collisions_gs = True   # enable self collisions by default
-        # For IsaacGym
+        dof_vel_limits = [] # rad/s, obtain from urdf
+        # For IsaacGym and IsaacLab
         disable_gravity = False
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         default_dof_drive_mode = 3   # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
-        self_collisions_gym = 0      # 1 to disable, 0 to enable...bitwise filter
         replace_cylinder_with_capsule = False # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
         density = 0.001
-        angular_damping = 0.01
+        angular_damping = 0.
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
@@ -205,8 +203,8 @@ class LeggedRobotCfg(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = 0
-        pos = [2, 2, 2]       # [m]
-        lookat = [0., 0, 1.]  # [m]
+        pos = [2, 2, 1]       # [m], relative to the robot position
+        lookat = [0., 0, 0.]  # [m], relative to the robot position
         rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
     
     # sensor configuration:

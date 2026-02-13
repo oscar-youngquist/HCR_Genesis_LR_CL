@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from torch import Tensor
+import numpy as np
 
 """ ********** Base Simulator ********** """
 class Simulator(ABC):
@@ -10,6 +11,7 @@ class Simulator(ABC):
         self._cfg = cfg
         self._num_envs = self._cfg.env.num_envs
         self._num_actions = self._cfg.env.num_actions
+        self._dof_indices = []  # align joint orders in different simulators with the order specified in the config file
         self._parse_cfg()
         self._create_sim()
         self._create_envs()
@@ -89,6 +91,16 @@ class Simulator(ABC):
         """Draws debug visualizations, such as the sampling points around the robot.
         """
         return
+    
+    @abstractmethod
+    def set_viewer_camera(self, eye: np.ndarray, target: np.ndarray):
+        """Sets the viewer camera in the simulator.
+
+        Args:
+            eye (np.ndarray): The position of the camera.
+            target (np.ndarray): The target point the camera is looking at.
+        """
+        return
 
     #----- Protected methods -----#
     @abstractmethod
@@ -143,6 +155,19 @@ class Simulator(ABC):
             Tensor: A boolean tensor indicating whether the base position of the robot is out of bound for each environment.
         """
         return
+    
+    @abstractmethod
+    def _compute_torques(self, actions: Tensor):
+        """Computes the torques to apply to the robot's joints based on the given actions.
+
+        Args:
+            actions (Tensor): Actions to compute torques for.
+
+        Returns:
+            Tensor: Torques to apply to the robot's joints.
+        """
+        return
+        
     
     @abstractmethod
     def _init_domain_params(self):
@@ -227,6 +252,9 @@ class Simulator(ABC):
     @property
     def feet_contact_indices(self):
         """Returns the indices of the feet links in the contact sensors.
+        
+            This property is created to solve the difference of body orders between
+            articulation and contact sensors in IsaacLab
 
         Returns:
             list[int]: Indices of the feet links in the contact sensors.
@@ -256,7 +284,7 @@ class Simulator(ABC):
         """Returns the terrain types of all environments.
 
         Returns:
-            Tensor: Terrain types of all environments.
+            Tensor((num_envs,)): Terrain types of all environments.
         """
         return self._terrain_types
     
@@ -265,7 +293,7 @@ class Simulator(ABC):
         """Returns the terrain levels of all environments.
 
         Returns:
-            Tensor: Terrain levels of all environments.
+            Tensor((num_envs,)): Terrain levels of all environments.
         """
         return self._terrain_levels
     
@@ -274,25 +302,34 @@ class Simulator(ABC):
         """Returns the DOF position limits of the robot.
 
         Returns:
-            Tensor: DOF position limits of the robot.
+            Tensor((num_dof, 2)): DOF position limits of the robot.
         """
         return self._dof_pos_limits
+    
+    @property
+    def dof_vel_limits(self):
+        """Returns the DOF velocity limits of the robot.
+
+        Returns:
+            Tensor((num_dof,)): DOF velocity limits of the robot.
+        """
+        return self._dof_vel_limits
     
     @property
     def base_init_pos(self):
         """Returns the initial base position of the robot.
 
         Returns:
-            Tensor: Initial base position of the robot.
+            Tensor((3,)): Initial base position of the robot.
         """
         return self._base_init_pos
     
     @property
     def base_init_quat(self):
-        """Returns the initial base orientation (quaternion) of the robot.
+        """Returns the initial base orientation (quaternion) of the robot (xyzw sequence).
 
         Returns:
-            Tensor: Initial base orientation (quaternion) of the robot.
+            Tensor((4,)): Initial base orientation (quaternion) of the robot (xyzw sequence).
         """
         return self._base_init_quat
     
@@ -301,7 +338,7 @@ class Simulator(ABC):
         """Returns the base linear velocity of the robot (respective to the base frame).
 
         Returns:
-            Tensor: Base linear velocity of the robot.
+            Tensor((num_envs, 3)): Base linear velocity of the robot.
         """
         return self._base_lin_vel
     
@@ -310,7 +347,7 @@ class Simulator(ABC):
         """Returns the base angular velocity of the robot (respective to the base frame).
 
         Returns:
-            Tensor: Base angular velocity of the robot.
+            Tensor((num_envs, 3)): Base angular velocity of the robot.
         """
         return self._base_ang_vel
     
@@ -319,7 +356,7 @@ class Simulator(ABC):
         """Returns the projected gravity in the base frame.
 
         Returns:
-            Tensor: Projected gravity in the base frame.
+            Tensor((num_envs, 3)): Projected gravity in the base frame.
         """
         return self._projected_gravity
     
@@ -328,7 +365,7 @@ class Simulator(ABC):
         """Returns the DOF positions of the robot.
 
         Returns:
-            Tensor: DOF positions of the robot.
+            Tensor((num_envs, num_dof)): DOF positions of the robot.
         """
         return self._dof_pos
     
@@ -337,7 +374,7 @@ class Simulator(ABC):
         """Returns the DOF velocities of the robot.
 
         Returns:
-            Tensor: DOF velocities of the robot.
+            Tensor((num_envs, num_dof)): DOF velocities of the robot.
         """
         return self._dof_vel
     
@@ -346,7 +383,7 @@ class Simulator(ABC):
         """Returns the DOF velocities of the robot in the last simulation step.
 
         Returns:
-            Tensor: DOF velocities of the robot in the last simulation step.
+            Tensor((num_envs, num_dof)): DOF velocities of the robot in the last simulation step.
         """
         return self._last_dof_vel
     
@@ -355,7 +392,7 @@ class Simulator(ABC):
         """Returns the positions of the feet in the world frame.
 
         Returns:
-            Tensor: Positions of the feet in the world frame.
+            Tensor((num_envs, num_feet, 3)): Positions of the feet in the world frame.
         """
         return self._feet_pos
     
@@ -364,7 +401,7 @@ class Simulator(ABC):
         """Returns the velocities of the feet in the world frame.
 
         Returns:
-            Tensor: Velocities of the feet in the world frame.
+            Tensor((num_envs, num_feet, 3)): Velocities of the feet in the world frame.
         """
         return self._feet_vel
     
@@ -373,7 +410,7 @@ class Simulator(ABC):
         """Returns the velocities of the feet in the world frame in the last simulation step.
 
         Returns:
-            Tensor: Velocities of the feet in the world frame in the last simulation step.
+            Tensor((num_envs, num_feet, 3)): Velocities of the feet in the world frame in the last simulation step.
         """
         return self._last_feet_vel
     
@@ -382,16 +419,16 @@ class Simulator(ABC):
         """Returns the base position of the robot in the world frame.
 
         Returns:
-            Tensor: Base position of the robot in the world frame.
+            Tensor((num_envs, 3)): Base position of the robot in the world frame.
         """
         return self._base_pos
     
     @property
     def base_quat(self):
-        """Returns the base orientation (quaternion) of the robot in the world frame.
+        """Returns the base orientation (quaternion) of the robot in the world frame (xyzw sequence).
 
         Returns:
-            Tensor: Base orientation (quaternion) of the robot in the world frame.
+            Tensor((num_envs, 4)): Base orientation (quaternion) of the robot in the world frame (xyzw sequence).
         """
         return self._base_quat
     
@@ -400,7 +437,7 @@ class Simulator(ABC):
         """Returns the measured heights of the sampling points around the robot.
 
         Returns:
-            Tensor: Measured heights of the sampling points around the robot.
+            Tensor((num_envs, num_height_points)): Measured heights of the sampling points around the robot.
         """
         return self._measured_heights
     
@@ -409,7 +446,7 @@ class Simulator(ABC):
         """Returns the contact forces of all links of the robot.
 
         Returns:
-            Tensor: Contact forces of all links of the robot.
+            Tensor((num_envs, num_links, 3)): Contact forces of all links of the robot.
         """
         return self._link_contact_forces
     
@@ -418,7 +455,7 @@ class Simulator(ABC):
         """Returns the contact states of specified links of the robot.
 
         Returns:
-            Tensor: Contact states of specified links of the robot.
+            Tensor((num_envs, num_links)): Contact states of specified links of the robot.
         """
         return self._link_contact_states
     
@@ -427,7 +464,7 @@ class Simulator(ABC):
         """Returns the torques applied to the robot's joints.
 
         Returns:
-            Tensor: Torques applied to the robot's joints.
+            Tensor((num_envs, num_dof)): Torques applied to the robot's joints.
         """
         return self._torques
     
@@ -436,7 +473,7 @@ class Simulator(ABC):
         """Returns the torque limits of the robot's joints.
 
         Returns:
-            Tensor: Torque limits of the robot's joints.
+            Tensor((num_dof)): Torque limits of the robot's joints.
         """
         return self._torque_limits
     
@@ -445,8 +482,7 @@ class Simulator(ABC):
         """Returns the terrain normal vectors around feet.
         
         Returns:
-            Tensor: Terrain normal vectors around feet.
-            Shape: (num_envs, num_feet * 3)
+            Tensor((num_envs, num_feet * 3)): Terrain normal vectors around feet.
         """
         return self._normal_vector_around_feet
     
@@ -455,8 +491,7 @@ class Simulator(ABC):
         """Returns the terrain heights around feet.
         
         Returns:
-            Tensor: Terrain heights around feet.
-            Shape: (num_envs, num_feet, 9)
+            Tensor((num_envs, num_feet, 9)): Terrain heights around feet.
         """
         return self._height_around_feet
     
@@ -465,7 +500,7 @@ class Simulator(ABC):
         """Returns the default dof pos.
         
         Returns:
-            Tensor: (1, num_dofs)
+            Tensor((1, num_dofs)): Default dof pos.
         """
         return self._default_dof_pos
     
@@ -483,7 +518,7 @@ class Simulator(ABC):
         """Returns the friction values for domain randomization.
 
         Returns:
-            Tensor: Friction values for domain randomization.
+            Tensor((num_envs, 1)): Friction values for domain randomization.
         """
         return self._friction_values
     
@@ -492,7 +527,7 @@ class Simulator(ABC):
         """Returns the added base mass for domain randomization.
         
         Returns:
-            Tensor: Added base mass for domain randomization.
+            Tensor((num_envs, 1)): Added base mass for domain randomization.
         """
         return self._added_base_mass
     
@@ -501,7 +536,7 @@ class Simulator(ABC):
         """Returns the random push velocities for domain randomization.
 
         Returns:
-            Tensor: Random push velocities for domain randomization.
+            Tensor((num_envs, 3)): Random push velocities for domain randomization.
         """
         return self._rand_push_vels
     
@@ -510,7 +545,7 @@ class Simulator(ABC):
         """Returns the base COM bias for domain randomization.
 
         Returns:
-            Tensor: Base COM bias for domain randomization.
+            Tensor((num_envs, 3)): Base COM bias for domain randomization.
         """
         return self._base_com_bias
     
@@ -519,7 +554,7 @@ class Simulator(ABC):
         """Returns the joint armature for domain randomization.
 
         Returns:
-            Tensor: Joint armature for domain randomization.
+            Tensor((num_envs, num_dof)): Joint armature for domain randomization.
         """
         return self._joint_armature
     
@@ -528,7 +563,7 @@ class Simulator(ABC):
         """Returns the joint friction for domain randomization.
 
         Returns:
-            Tensor: Joint friction for domain randomization.
+            Tensor((num_envs, num_dof)): Joint friction for domain randomization.
         """
         return self._joint_friction
     
@@ -537,7 +572,7 @@ class Simulator(ABC):
         """Returns the joint damping for domain randomization.
 
         Returns:
-            Tensor: Joint damping for domain randomization.
+            Tensor((num_envs, num_dof)): Joint damping for domain randomization.
         """
         return self._joint_damping
     
@@ -546,7 +581,7 @@ class Simulator(ABC):
         """Returns the KP scale for domain randomization.
 
         Returns:
-            Tensor: KP scale for domain randomization.
+            Tensor((num_envs, num_dof)): KP scale for domain randomization.
         """
         return self._kp_scale
     
@@ -555,7 +590,7 @@ class Simulator(ABC):
         """Returns the KD scale for domain randomization.
 
         Returns:
-            Tensor: KD scale for domain randomization.
+            Tensor((num_envs, num_dof)): KD scale for domain randomization.
         """
         return self._kd_scale
     
@@ -564,6 +599,6 @@ class Simulator(ABC):
         """Returns the origin positions of all environments.
 
         Returns:
-            Tensor: Origin positions of all environments.
+            Tensor((num_envs, 3)): Origin positions of all environments.
         """
         return self._env_origins

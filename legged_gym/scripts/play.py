@@ -23,11 +23,7 @@ def override_configs(env_cfg, args):
         env_cfg.env.num_teacher = 1
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
-    if env_cfg.terrain.mesh_type == "plane":
-        for i in range(2):
-            env_cfg.viewer.pos[i] = env_cfg.viewer.pos[i] - env_cfg.terrain.plane_length / 4
-            env_cfg.viewer.lookat[i] = env_cfg.viewer.lookat[i] - env_cfg.terrain.plane_length / 4
-    elif env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
+    if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
         env_cfg.terrain.num_rows = 2
         env_cfg.terrain.num_cols = 2
         env_cfg.terrain.curriculum = False
@@ -110,6 +106,12 @@ def interaction_loop(env, policy, args):
             env.commands[:, 0] = -joystick.ly
             env.commands[:, 1] = -joystick.lx
             env.commands[:, 2] = -joystick.rx
+        
+        # set the viewer camera to follow the first environment by default
+        if args.follow_robot:
+            pos = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.pos, dtype=np.float32)
+            lookat = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.lookat, dtype=np.float32)
+            env.set_viewer_camera(pos, lookat)
         
         # Step the environment according to task type
         if "ts" in task_name or "cat" in task_name:

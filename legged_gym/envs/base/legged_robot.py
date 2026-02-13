@@ -52,6 +52,11 @@ class LeggedRobot(BaseTask):
             self.action_queue[:, 0] = actions.clone()
             actions = self.action_queue[torch.arange(
                 self.num_envs), self.action_delay].clone()
+        # during training, the camera follows the first environment
+        if not self.debug and not self.headless:
+            pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
+            lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
+            self.set_viewer_camera(pos, lookat)
         self.simulator.step(actions)
         self.post_physics_step()
 
@@ -231,13 +236,10 @@ class LeggedRobot(BaseTask):
                     1) - 0.5 - self.simulator.measured_heights, -1, 1.) * self.obs_scales.height_measurements
                 self.privileged_obs_buf = torch.cat((self.privileged_obs_buf, heights), dim=-1)
 
-    def set_camera(self, pos, lookat):
-        """ Set camera position and direction
+    def set_viewer_camera(self, pos, lookat):
+        """ Set viewer camera position and direction
         """
-        self.floating_camera.set_pose(
-            pos=pos,
-            lookat=lookat
-        )
+        self.simulator.set_viewer_camera(eye=pos, target=lookat)
 
     # ------------- Callbacks --------------
     
@@ -494,9 +496,12 @@ class LeggedRobot(BaseTask):
 
     def _reward_collision(self):
         # Penalize collisions on selected bodies
-        return torch.sum(1.*(torch.norm(
+        # print(f"contacts: {(torch.norm(self.simulator.link_contact_forces[0, self.simulator.penalized_contact_indices, :], dim=-1) > 0.1)}")
+        rew = torch.sum(1.*(torch.norm(
             self.simulator.link_contact_forces[:, self.simulator.penalized_contact_indices, :], 
             dim=-1) > 0.1), dim=1)
+        # print(f"collision reward: {rew[0]}")
+        return rew
 
     def _reward_termination(self):
         # Terminal reward / penalty
