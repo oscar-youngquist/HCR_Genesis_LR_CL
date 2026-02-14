@@ -31,6 +31,7 @@
 import numpy as np
 from numpy.random import choice
 from scipy import interpolate
+import trimesh
 
 from . import terrain_utils
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
@@ -58,8 +59,9 @@ class Terrain:
         self.border = int(cfg.border_size/self.cfg.horizontal_scale)
         self.tot_cols = int(cfg.num_cols * self.width_per_env_pixels) + 2 * self.border
         self.tot_rows = int(cfg.num_rows * self.length_per_env_pixels) + 2 * self.border
-
+    
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
+        self.terrain_meshes = []
         if cfg.curriculum:
             self.curiculum()
         elif cfg.selected:
@@ -69,10 +71,13 @@ class Terrain:
         
         self.heightsamples = self.height_field_raw
         if self.type=="trimesh":
-            self.vertices, self.triangles = terrain_utils.convert_heightfield_to_trimesh(   self.height_field_raw,
-                                                                                            self.cfg.horizontal_scale,
-                                                                                            self.cfg.vertical_scale,
-                                                                                            self.cfg.slope_treshold)
+            self._add_terrain_border()
+            self.terrain_mesh = trimesh.util.concatenate(self.terrain_meshes)
+            
+            # self.vertices, self.triangles = terrain_utils.convert_heightfield_to_trimesh(   self.height_field_raw,
+            #                                                                                 self.cfg.horizontal_scale,
+            #                                                                                 self.cfg.vertical_scale,
+            #                                                                                 self.cfg.slope_treshold)
     
     def randomized_terrain(self):
         for k in range(self.cfg.num_sub_terrains):
@@ -106,7 +111,7 @@ class Terrain:
                               vertical_scale=self.cfg.vertical_scale,
                               horizontal_scale=self.cfg.horizontal_scale)
                 
-            eval(terrain_type)(terrain, **self.cfg.terrain_kwargs)
+            eval(terrain_type)(terrain, **self.cfg.terrain_kwargs, terrain_type=self.type)
             self.add_terrain_to_map(terrain, i, j)
     
     def make_terrain(self, choice, difficulty):
@@ -125,25 +130,57 @@ class Terrain:
         if choice < self.proportions[0]:
             if choice < self.proportions[0]/ 2:
                 slope *= -1
-            terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=self.platform_size)
+            terrain_utils.pyramid_sloped_terrain(terrain, 
+                                                 slope=slope, 
+                                                 platform_size=self.platform_size,
+                                                 terrain_type=self.type)
         elif choice < self.proportions[1]:
-            terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=self.platform_size)
-            terrain_utils.random_uniform_terrain(terrain, min_height=-0.05, max_height=0.05, step=0.005, downsampled_scale=0.2)
+            terrain_utils.pyramid_sloped_terrain(terrain, 
+                                                 slope=slope, 
+                                                 platform_size=self.platform_size,
+                                                 terrain_type=self.type)
+            terrain_utils.random_uniform_terrain(terrain, 
+                                                 min_height=-0.05, 
+                                                 max_height=0.05, 
+                                                 step=0.005, 
+                                                 downsampled_scale=0.2, 
+                                                 terrain_type=self.type)
         elif choice < self.proportions[3]:
             if choice<self.proportions[2]:
                 step_height *= -1
-            terrain_utils.pyramid_stairs_terrain(terrain, step_width=0.4, step_height=step_height, platform_size=self.platform_size)
+            terrain_utils.pyramid_stairs_terrain(terrain, 
+                                                 step_width=0.4, 
+                                                 step_height=step_height, 
+                                                 platform_size=self.platform_size,
+                                                 terrain_type=self.type)
         elif choice < self.proportions[4]:
             num_rectangles = 20
             rectangle_min_size = 1.
             rectangle_max_size = 2.
-            terrain_utils.discrete_obstacles_terrain(terrain, discrete_obstacles_height, rectangle_min_size, rectangle_max_size, num_rectangles, platform_size=self.platform_size)
+            terrain_utils.discrete_obstacles_terrain(terrain, 
+                                                     discrete_obstacles_height, 
+                                                     rectangle_min_size, 
+                                                     rectangle_max_size, 
+                                                     num_rectangles, 
+                                                     platform_size=self.platform_size,
+                                                     terrain_type=self.type)
         elif choice < self.proportions[5]:
-            terrain_utils.stepping_stones_terrain(terrain, stone_size=stepping_stones_size, stone_distance=stone_distance, max_height=0., platform_size=self.platform_size)
+            terrain_utils.stepping_stones_terrain(terrain, 
+                                                  stone_size=stepping_stones_size, 
+                                                  stone_distance=stone_distance, 
+                                                  max_height=0., 
+                                                  platform_size=self.platform_size,
+                                                  terrain_type=self.type)
         elif choice < self.proportions[6]:
-            terrain_utils.gap_terrain(terrain, gap_size=gap_size, platform_size=self.platform_size)
+            terrain_utils.gap_terrain(terrain, 
+                                      gap_size=gap_size, 
+                                      platform_size=self.platform_size,
+                                      terrain_type=self.type)
         else:
-            terrain_utils.pit_terrain(terrain, depth=pit_depth, platform_size=self.platform_size)
+            terrain_utils.pit_terrain(terrain, 
+                                      depth=pit_depth, 
+                                      platform_size=self.platform_size,
+                                      terrain_type=self.type)
 
         return terrain
 
@@ -166,4 +203,43 @@ class Terrain:
         y2 = int((self.env_width/2. + 1) / terrain.horizontal_scale)
         env_origin_z = np.max(terrain.height_field_raw[x1:x2, y1:y2])*terrain.vertical_scale
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
-
+        
+        if self.type == "trimesh":
+            # apply translation to the trimesh
+            translation = np.array([
+                start_x * terrain.horizontal_scale,
+                start_y * terrain.horizontal_scale,
+                0
+            ])
+            terrain.terrain_mesh.apply_translation(translation)
+            self.terrain_meshes.append(terrain.terrain_mesh)
+    
+    #---------- Protected Methods ----------#
+    
+    def _add_terrain_border(self):
+        """Add a surrounding border over all the sub-terrains into the terrain meshes."""
+        # border parameters
+        border_size = (
+            self.cfg.num_rows * self.cfg.terrain_length + 2 * self.cfg.border_size,
+            self.cfg.num_cols * self.cfg.terrain_width + 2 * self.cfg.border_size,
+        )
+        inner_size = (
+            self.cfg.num_rows * self.cfg.terrain_length - self.cfg.horizontal_scale, # a small offset to align the subterrain with border
+            self.cfg.num_cols * self.cfg.terrain_width - self.cfg.horizontal_scale
+        )
+        border_center = (
+            self.cfg.num_rows * self.cfg.terrain_length / 2 + self.cfg.border_size,
+            self.cfg.num_cols * self.cfg.terrain_width / 2 + self.cfg.border_size,
+            -self.cfg.border_height / 2,
+        )
+        # border mesh
+        border_meshes = terrain_utils.make_border(border_size, 
+                                                  inner_size, 
+                                                  height=abs(self.cfg.border_height), 
+                                                  position=border_center)
+        border = trimesh.util.concatenate(border_meshes)
+        # update the faces to have minimal triangles
+        selector = ~(np.asarray(border.triangles)[:, :, 2] < -0.1).any(1)
+        border.update_faces(selector)
+        # add the border to the list of meshes
+        self.terrain_meshes.append(border)

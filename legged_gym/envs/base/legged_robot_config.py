@@ -9,8 +9,9 @@ class LeggedRobotCfg(BaseConfig):
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         debug = False # if debugging, visualize contacts, etc.
-        debug_draw_height_points = False
+        debug_draw_height_points_around_base = False
         debug_draw_height_points_around_feet = False
+        debug_draw_terrain_height_points = False
         env_spacing = 1.0
         fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
@@ -20,6 +21,7 @@ class LeggedRobotCfg(BaseConfig):
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
         border_size = 5 # [m]
+        border_height = 1.0 # [m]
         curriculum = False
         static_friction = 1.0
         dynamic_friction = 1.0
@@ -203,7 +205,7 @@ class LeggedRobotCfg(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = 0
-        pos = [2, 2, 1]       # [m], relative to the robot position
+        pos = [1.0, 1.0, 0.5]       # [m], relative to the robot position
         lookat = [0., 0, 0.]  # [m], relative to the robot position
         rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
     
