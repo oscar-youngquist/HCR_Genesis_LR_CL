@@ -95,7 +95,7 @@ class LeggedRobotCfg(BaseConfig):
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         default_dof_drive_mode = 3   # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         replace_cylinder_with_capsule = False # replace collision cylinders with capsules, leads to faster/more stable simulation
-        flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
+        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         density = 0.001
         angular_damping = 0.
         linear_damping = 0.
@@ -254,7 +254,7 @@ class LeggedRobotCfg(BaseConfig):
             rest_offset = 0.0   # [m]
             bounce_threshold_velocity = 0.5 #0.5 [m/s]
             max_depenetration_velocity = 1.0
-            max_gpu_contact_pairs = 2**24 #2**24 -> needed for 8000 envs and more
+            max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
             contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
     

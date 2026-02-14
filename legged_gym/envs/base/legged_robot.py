@@ -40,23 +40,7 @@ class LeggedRobot(BaseTask):
         Args:
             actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-        clip_actions = self.cfg.normalization.clip_actions
-        actions = torch.clip(
-            actions, -clip_actions, clip_actions).to(self.device)
-        # update history of actions
-        self.llast_actions[:] = self.last_actions[:]
-        self.last_actions[:] = self.actions[:]
-        self.actions[:] = actions[:]
-        if self.cfg.domain_rand.randomize_ctrl_delay:
-            self.action_queue[:, 1:] = self.action_queue[:, :-1].clone()
-            self.action_queue[:, 0] = actions.clone()
-            actions = self.action_queue[torch.arange(
-                self.num_envs), self.action_delay].clone()
-        # during training, the camera follows the first environment
-        if not self.debug and not self.headless:
-            pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
-            lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
-            self.set_viewer_camera(pos, lookat)
+        actions = self._pre_sim_step(actions)
         self.simulator.step(actions)
         self.post_physics_step()
 
@@ -124,7 +108,7 @@ class LeggedRobot(BaseTask):
             self._update_terrain_curriculum(env_ids)
         # avoid updating command curriculum at each step since the maximum command is common to all envs
         if self.cfg.commands.curriculum and (self.common_step_counter % self.max_episode_length ==0):
-            self.update_command_curriculum(env_ids)
+            self._update_command_curriculum(env_ids)
 
         self._resample_commands(env_ids)
         self._reset_dofs(env_ids)
@@ -241,7 +225,29 @@ class LeggedRobot(BaseTask):
         """
         self.simulator.set_viewer_camera(eye=pos, target=lookat)
 
-    # ------------- Callbacks --------------
+    # ------------- Callbacks (Protected Function) --------------
+    
+    def _pre_sim_step(self, actions):
+        """ Callback called at the beginning of the step function, before stepping the simulation
+        """
+        clip_actions = self.cfg.normalization.clip_actions
+        actions = torch.clip(
+            actions, -clip_actions, clip_actions).to(self.device)
+        # update history of actions
+        self.llast_actions[:] = self.last_actions[:]
+        self.last_actions[:] = self.actions[:]
+        self.actions[:] = actions[:]
+        # apply action delay by using an action queue
+        if self.cfg.domain_rand.randomize_ctrl_delay:
+            self.action_queue[:, 1:] = self.action_queue[:, :-1].clone()
+            self.action_queue[:, 0] = actions.clone()
+            actions = self.action_queue[torch.arange(
+                self.num_envs), self.action_delay].clone()
+        # during training, the camera follows the first environment
+        if not self.debug and not self.headless:
+            pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
+            lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
+            self.set_viewer_camera(pos, lookat)
     
     def _update_terrain_curriculum(self, env_ids):
         """ Implements the game-inspired curriculum.
@@ -325,7 +331,7 @@ class LeggedRobot(BaseTask):
         self.commands[env_ids, :2] *= (torch.norm(
             self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
-    def update_command_curriculum(self, env_ids):
+    def _update_command_curriculum(self, env_ids):
         """ Implements a curriculum of increasing commands
 
         Args:

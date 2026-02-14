@@ -54,8 +54,6 @@ class TRON1PFCfg( LeggedRobotCfg ):
             "knee_R_Joint",
         ]
         links_to_keep = ['foot_L_Link', 'foot_R_Link']
-        # For IsaacGym
-        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9

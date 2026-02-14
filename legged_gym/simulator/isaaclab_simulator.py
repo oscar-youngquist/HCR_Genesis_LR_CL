@@ -1,4 +1,3 @@
-import pyfqmr
 from legged_gym import *
 from legged_gym.simulator.simulator import Simulator
 from PIL import Image as im
@@ -174,8 +173,6 @@ class IsaacLabSimulator(Simulator):
             max_velocity_iteration_count=self._sim_params["physx"]["num_velocity_iterations"],
             bounce_threshold_velocity=self._sim_params["physx"]["bounce_threshold_velocity"],
             gpu_max_rigid_contact_count=self._sim_params["physx"]["max_gpu_contact_pairs"],
-            gpu_found_lost_pairs_capacity=2**23,
-            gpu_found_lost_aggregate_pairs_capacity=2**27,
         )
         # create simulation context
         sim_cfg = sim_utils.SimulationCfg(device=self._device, 
@@ -209,7 +206,7 @@ class IsaacLabSimulator(Simulator):
         # specify the boundary of the heightfield
         self._terrain_x_range = torch.zeros(2, device=self._device)
         self._terrain_y_range = torch.zeros(2, device=self._device)
-        if self._cfg.terrain.mesh_type == 'heightfield':
+        if self._cfg.terrain.mesh_type in ['heightfield', 'trimesh']:
             # give a small margin(1.0m)
             self._terrain_x_range[0] = -self._cfg.terrain.border_size + 1.0
             self._terrain_x_range[1] = self._cfg.terrain.border_size + \
@@ -624,6 +621,13 @@ class IsaacLabSimulator(Simulator):
             base_pos[:, 0] <= self._terrain_x_range[0])
         y_out_of_bound = (base_pos[:, 1] >= self._terrain_y_range[1]) | (
             base_pos[:, 1] <= self._terrain_y_range[0])
+        # check if the base height is lower than the minimum height of the terrain
+        # TODO: this is a temporary solution to prevent the robot from falling through the terrain
+        # TODO: we still need to create terrain directly from mesh to reduce vertices and faces, therefore avoiding missing interaction
+        if self._cfg.terrain.mesh_type in ['heightfield', 'trimesh']:
+            min_height = torch.min(self._height_samples) * self._cfg.terrain.vertical_scale
+            z_out_of_bound = base_pos[:, 2] <= min_height
+            y_out_of_bound = y_out_of_bound | z_out_of_bound
         out_of_bound_buf = x_out_of_bound | y_out_of_bound
         env_ids = out_of_bound_buf.nonzero(as_tuple=False).flatten()
         if len(env_ids) == 0:
@@ -843,6 +847,11 @@ class IsaacLabSimulator(Simulator):
         create_prim_from_mesh(GROUND_PATH + "/terrain", terrain_mesh, 
                               physics_material=physics_material,
                               visual_material=visual_material,
+                              translation=(
+                                  -self._cfg.terrain.border_size,
+                                  -self._cfg.terrain.border_size,
+                                  0.0
+                              )
                               )
         
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(

@@ -59,22 +59,7 @@ class LeggedRobotEE(LeggedRobot):
         Args:
             actions (torch.Tensor): Tensor of shape (num_envs, num_actions_per_env)
         """
-        clip_actions = self.cfg.normalization.clip_actions
-        actions = torch.clip(
-            actions, -clip_actions, clip_actions).to(self.device)
-        self.actions[:] = actions[:]
-        if self.cfg.domain_rand.randomize_ctrl_delay:
-            self.action_queue[:, 1:] = self.action_queue[:, :-1].clone()
-            self.action_queue[:, 0] = actions.clone()
-            actions = self.action_queue[torch.arange(
-                self.num_envs), self.action_delay].clone()
-        
-        # during training, the camera follows the first environment
-        if not self.debug and not self.headless:
-            pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
-            lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
-            self.set_viewer_camera(pos, lookat)
-            
+        actions = self._pre_sim_step(actions)
         self.simulator.step(actions)
         self.post_physics_step()
 

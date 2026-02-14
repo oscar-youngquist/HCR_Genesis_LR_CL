@@ -24,10 +24,10 @@ def override_configs(env_cfg, args):
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
     if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
-        env_cfg.terrain.num_rows = 2
-        env_cfg.terrain.num_cols = 2
-        env_cfg.terrain.curriculum = False
-        env_cfg.terrain.selected = True
+        env_cfg.terrain.num_rows = 8
+        env_cfg.terrain.num_cols = 8
+        env_cfg.terrain.curriculum = True
+        env_cfg.terrain.selected = False
         env_cfg.env.debug_draw_height_points = True
         
         # stairs

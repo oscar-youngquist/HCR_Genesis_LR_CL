@@ -24,7 +24,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
             mesh_type = "heightfield" # for genesis
         else:
             mesh_type = "trimesh"  # for isaacgym
-        restitution = 0.
         border_size = 10.0 # [m]
         curriculum = True
         # rough terrain only:
@@ -96,8 +95,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
                           30.1, 30.1, 15.7, 
                           30.1, 30.1, 15.7, 
                           30.1, 30.1, 15.7]
-        # IsaacGym:
-        flip_visual_attachments = False
   
     class rewards( LeggedRobotTSCfg.rewards ):
         soft_dof_pos_limit = 0.9

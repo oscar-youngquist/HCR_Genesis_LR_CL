@@ -88,7 +88,7 @@ class Terrain:
         print(f"Terrain Curriculum ON")
         for j in range(self.cfg.num_cols):     # Y
             for i in range(self.cfg.num_rows): # X
-                difficulty = i / self.cfg.num_rows     # add difficulty along X axis, row
+                difficulty = i / self.cfg.num_rows      # add difficulty along X axis, row
                 choice = j / self.cfg.num_cols + 0.001 # change terrain type along Y axis, col
 
                 terrain = self.make_terrain(choice, difficulty)

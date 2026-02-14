@@ -73,8 +73,6 @@ class GO2WTWCfg(LeggedRobotCfg):
                           30.1, 30.1, 15.7, 
                           30.1, 30.1, 15.7, 
                           30.1, 30.1, 15.7]
-        # For IsaacGym
-        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9

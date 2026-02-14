@@ -21,7 +21,6 @@ class Go2CTSCfg( LeggedRobotCTSCfg ):
             mesh_type = "heightfield"
         else:
             mesh_type = "trimesh"
-        restitution = 0.
         border_size = 10.0 # [m]
         curriculum = True
         # rough terrain only:
@@ -88,8 +87,6 @@ class Go2CTSCfg( LeggedRobotCTSCfg ):
             'RL_thigh_joint',
             'RL_calf_joint',]
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
-        # IsaacGym:
-        flip_visual_attachments = False
   
     class rewards( LeggedRobotCTSCfg.rewards ):
         soft_dof_pos_limit = 0.9

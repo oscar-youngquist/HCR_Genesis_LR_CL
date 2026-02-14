@@ -1,5 +1,6 @@
 from legged_gym import *
 from legged_gym.envs.base.legged_robot_ee_config import LeggedRobotEECfg, LeggedRobotEECfgPPO
+from legged_gym.envs.base.common_cfgs import Go2RoughCommonCfg
 
 class Go2EECfg( LeggedRobotEECfg ):
     class env( LeggedRobotEECfg.env ):
@@ -15,112 +16,19 @@ class Go2EECfg( LeggedRobotEECfg ):
         num_actions = 12
         env_spacing = 2.0
     
-    class terrain( LeggedRobotEECfg.terrain ):
-        if SIMULATOR == "genesis":
-            mesh_type = "heightfield" # for genesis
-        else:
-            mesh_type = "trimesh"  # for isaacgym and isaaclab
-        restitution = 0.
-        border_size = 10.0 # [m]
-        curriculum = True
-        # rough terrain only:
-        obtain_terrain_info_around_feet = True
-        measure_heights = True
-        measured_points_x = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4] # 9x9=81
-        measured_points_y = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4]
-        terrain_length = 6.0
-        terrain_width = 6.0
-        num_rows = 6  # number of terrain rows (levels)
-        num_cols = 10  # number of terrain cols (types)
-        # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
-        terrain_proportions = [0.2, 0.1, 0.25, 0.25, 0.2]
-        
-    class init_state( LeggedRobotEECfg.init_state ):
-        pos = [0.0, 0.0, 0.42] # x,y,z [m]
-        default_joint_angles = { # = target angles [rad] when action = 0.0
-            'FL_hip_joint': 0.0,   # [rad]
-            'RL_hip_joint': 0.0,   # [rad]
-            'FR_hip_joint': 0.0 ,  # [rad]
-            'RR_hip_joint': 0.0,   # [rad]
-
-            'FL_thigh_joint': 0.8,     # [rad]
-            'RL_thigh_joint': 0.8,   # [rad]
-            'FR_thigh_joint': 0.8,     # [rad]
-            'RR_thigh_joint': 0.8,   # [rad]
-
-            'FL_calf_joint': -1.5,   # [rad]
-            'RL_calf_joint': -1.5,    # [rad]
-            'FR_calf_joint': -1.5,  # [rad]
-            'RR_calf_joint': -1.5,    # [rad]
-        }
-
-    class control( LeggedRobotEECfg.control ):
-        # PD Drive parameters:
-        # control_type = 'P'
-        stiffness = {'joint': 20.}   # [N*m/rad]
-        damping = {'joint': 0.5}     # [N*m*s/rad]
-        action_scale = 0.25 # action scale: target angle = actionScale * action + defaultAngle
-        dt =  0.02  # control frequency 50Hz
-        decimation = 4 # decimation: Number of control action updates @ sim DT per policy DT
-
-    class asset( LeggedRobotEECfg.asset ):
-        # Common: 
-        name = "go2"
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
-        obtain_link_contact_states = True
-        contact_state_link_names = ["thigh", "calf", "foot", "base", "hip"]
-        foot_name = "foot"
-        base_link_name = "base"  # full name of the base link
-        penalize_contacts_on = ["thigh", "calf", "base", "Head", "hip"]
-        terminate_after_contacts_on = []
-        dof_names = [        # specify the sequence of actions
-            'FR_hip_joint',
-            'FR_thigh_joint',
-            'FR_calf_joint',
-            'FL_hip_joint',
-            'FL_thigh_joint',
-            'FL_calf_joint',
-            'RR_hip_joint',
-            'RR_thigh_joint',
-            'RR_calf_joint',
-            'RL_hip_joint',
-            'RL_thigh_joint',
-            'RL_calf_joint',]
-        # Genesis: 
-        links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
-        dof_vel_limits = [30.1, 30.1, 15.7, 
-                          30.1, 30.1, 15.7, 
-                          30.1, 30.1, 15.7, 
-                          30.1, 30.1, 15.7]
-        # IsaacGym:
-        flip_visual_attachments = False
+    # use common terrain, init_state, control, and asset configs
+    class terrain( Go2RoughCommonCfg.terrain ):
+        pass
+    class init_state( Go2RoughCommonCfg.init_state ):
+        pass
+    class control( Go2RoughCommonCfg.control ):
+        pass
+    class asset( Go2RoughCommonCfg.asset ):
+        pass
   
-    class rewards( LeggedRobotEECfg.rewards ):
-        soft_dof_pos_limit = 0.9
-        base_height_target = 0.34
-        foot_clearance_target = 0.09 # desired foot clearance above ground [m]
-        foot_height_offset = 0.022   # height of the foot coordinate origin above ground [m]
-        foot_clearance_tracking_sigma = 0.01
-        only_positive_rewards = True
-        class scales( LeggedRobotEECfg.rewards.scales ):
-            # limitation
-            dof_pos_limits = -2.0
-            collision = -1.0
-            # command tracking
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
-            # smooth
-            lin_vel_z = -2.0
-            ang_vel_xy = -0.05
-            dof_power = -2.e-4
-            dof_acc = -2.e-7
-            action_rate = -0.01
-            action_smoothness = -0.01
-            # gait
-            feet_air_time = 1.0
-            foot_clearance = 0.2
-            hip_pos = -0.05
-            feet_contact_stand_still = 0.5
+    class rewards( Go2RoughCommonCfg.rewards ):
+        class scales( Go2RoughCommonCfg.rewards.scales ):
+            pass
 
     class commands( LeggedRobotEECfg.commands ):
         curriculum = True
@@ -146,7 +54,7 @@ class Go2EECfg( LeggedRobotEECfg ):
         com_pos_x_range = [-0.03, 0.03]
         com_pos_y_range = [-0.03, 0.03]
         com_pos_z_range = [-0.03, 0.03]
-        randomize_pd_gain = False
+        randomize_pd_gain = True
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
         randomize_joint_armature = False

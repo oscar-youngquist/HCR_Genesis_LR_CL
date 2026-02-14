@@ -20,7 +20,6 @@ class TRON1SF_EECfg( LeggedRobotEECfg ):
             mesh_type = "heightfield" # for genesis
         else:
             mesh_type = "trimesh"  # for isaacgym
-        restitution = 0.
         border_size = 15.0 # [m]
         curriculum = True
         # rough terrain only:
@@ -111,8 +110,6 @@ class TRON1SF_EECfg( LeggedRobotEECfg ):
             "ankle_R_Joint",
         ]
         links_to_keep = []
-        # For IsaacGym
-        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
   
     class rewards( LeggedRobotEECfg.rewards ):
         soft_dof_pos_limit = 0.9
