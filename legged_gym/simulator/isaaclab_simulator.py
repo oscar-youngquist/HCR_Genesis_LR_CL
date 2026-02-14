@@ -1,3 +1,4 @@
+import pyfqmr
 from legged_gym import *
 from legged_gym.simulator.simulator import Simulator
 from PIL import Image as im
@@ -11,6 +12,7 @@ if SIMULATOR == "isaaclab":
     from isaaclab.app import AppLauncher
     import carb
     GROUND_PATH = "/World/ground"
+    LIGHT_PATH = "/World/Light"
 
 """ ********** IsaacLab Simulator ********** """
 class IsaacLabSimulator(Simulator):
@@ -40,13 +42,18 @@ class IsaacLabSimulator(Simulator):
             self._sim.render()
 
     def post_physics_step(self):
+        self._base_pos[:] = self._robot.data.root_link_pos_w[:]
         self._check_base_pos_out_of_bound()       # check if the pos of the robot is out of terrain bounds
+        self._base_pos[:] = self._robot.data.root_link_pos_w[:]
         # convert wxyz to xyzw
         self._base_quat[:, -1] = self._robot.data.root_link_quat_w[:, 0]
         self._base_quat[:, :3] = self._robot.data.root_link_quat_w[:, 1:]
+        self._base_euler[:] = get_euler_xyz(self._base_quat)
         self._projected_gravity[:] = quat_rotate_inverse(self._base_quat, self._global_gravity)[:]
         self._base_lin_vel[:] = quat_rotate_inverse(self._base_quat, self._robot.data.root_link_lin_vel_w)[:]
         self._base_ang_vel[:] = quat_rotate_inverse(self._base_quat, self._robot.data.root_link_ang_vel_w)[:]
+        self._feet_pos[:] = self._robot.data.body_link_pos_w[:, self._feet_indices, :]
+        self._feet_vel[:] = self._robot.data.body_link_vel_w[:, self._feet_indices, :3]
         # Link contact state
         if self._cfg.asset.obtain_link_contact_states:
             self._link_contact_states = 1. * (torch.norm(
@@ -77,11 +84,25 @@ class IsaacLabSimulator(Simulator):
         self._robot.reset(env_ids)
         self._contact_sensors.reset(env_ids)
         
+        self._base_pos[:] = self._robot.data.root_link_pos_w[:]
+        # convert wxyz to xyzw
         self._base_quat[:, -1] = self._robot.data.root_link_quat_w[:, 0]
         self._base_quat[:, :3] = self._robot.data.root_link_quat_w[:, 1:]
+        self._base_euler[:] = get_euler_xyz(self._base_quat)
         self._projected_gravity[:] = quat_rotate_inverse(self._base_quat, self._global_gravity)[:]
         self._base_lin_vel[:] = quat_rotate_inverse(self._base_quat, self._robot.data.root_link_lin_vel_w)[:]
         self._base_ang_vel[:] = quat_rotate_inverse(self._base_quat, self._robot.data.root_link_ang_vel_w)[:]
+        self._feet_pos[:] = self._robot.data.body_link_pos_w[:, self._feet_indices, :]
+        self._feet_vel[:] = self._robot.data.body_link_vel_w[:, self._feet_indices, :3]
+        # Link contact state
+        if self._cfg.asset.obtain_link_contact_states:
+            self._link_contact_states = 1. * (torch.norm(
+                self._contact_sensors.data.net_forces_w[:, self._contact_state_link_indices, :], dim=-1) > 1.)
+        # update terrain heights info
+        if self._cfg.terrain.measure_heights:
+            self._update_surrounding_heights()
+            if self._cfg.terrain.obtain_terrain_info_around_feet:
+                self._calc_terrain_info_around_feet()
         
         self._last_dof_vel[env_ids] = 0.
         self._last_feet_vel[env_ids] = 0.
@@ -151,9 +172,10 @@ class IsaacLabSimulator(Simulator):
             solver_type=self._sim_params["physx"]["solver_type"],
             max_position_iteration_count=self._sim_params["physx"]["num_position_iterations"],
             max_velocity_iteration_count=self._sim_params["physx"]["num_velocity_iterations"],
-            # enable_external_forces_every_iteration=True,
             bounce_threshold_velocity=self._sim_params["physx"]["bounce_threshold_velocity"],
             gpu_max_rigid_contact_count=self._sim_params["physx"]["max_gpu_contact_pairs"],
+            gpu_found_lost_pairs_capacity=2**23,
+            gpu_found_lost_aggregate_pairs_capacity=2**27,
         )
         # create simulation context
         sim_cfg = sim_utils.SimulationCfg(device=self._device, 
@@ -170,27 +192,19 @@ class IsaacLabSimulator(Simulator):
 
         # add terrain
         mesh_type = self._cfg.terrain.mesh_type
-        from isaaclab.terrains import TerrainImporterCfg, TerrainImporter
-        import isaaclab.sim as sim_utils
         if mesh_type == "plane":
-            from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
-            
-            ground_col = np.array([1.0, 0.9, 0.75])
-            ground_col *= 0.017
-            ground_path = GROUND_PATH
-
-            physics_material = sim_utils.RigidBodyMaterialCfg(static_friction=self._cfg.terrain.static_friction, 
-                                                              dynamic_friction=self._cfg.terrain.dynamic_friction,
-                                                              restitution=self._cfg.terrain.restitution)
-            plane_cfg = GroundPlaneCfg(physics_material=physics_material, color=ground_col)
-            self._terrain = spawn_ground_plane(prim_path=ground_path, cfg=plane_cfg)
-            
+            self._create_ground_plane()            
         elif mesh_type == "heightfield":
             raise NotImplementedError("Heightfield terrain not implemented for IsaacLabSimulator yet")
         elif mesh_type == "trimesh":
-            raise NotImplementedError("Trimesh terrain not implemented for IsaacLabSimulator yet")
+            self._terrain = Terrain(self._cfg.terrain)
+            self._create_trimesh()
         else:
             raise NameError(f"Unknown terrain mesh type: {mesh_type}")
+        
+        # build lights
+        if not self._headless:
+            self._build_lights()
         
         # specify the boundary of the heightfield
         self._terrain_x_range = torch.zeros(2, device=self._device)
@@ -252,7 +266,7 @@ class IsaacLabSimulator(Simulator):
             joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
                 gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
             ),
-            activate_contact_sensors=True
+            activate_contact_sensors=True,
         )
         
         # convert xyzw to wxyz
@@ -296,9 +310,7 @@ class IsaacLabSimulator(Simulator):
             prim_path=f"/World/envs/env_.*/{self._cfg.asset.name}",
             spawn=None,  # already spawned
             init_state=init_state,
-            soft_joint_pos_limit_factor=self._cfg.rewards.soft_dof_pos_limit,
             actuators=actuator_cfg,
-            collision_group=0,
         )
         self._robot = Articulation(articulation_cfg)
         
@@ -308,7 +320,6 @@ class IsaacLabSimulator(Simulator):
             update_period=self._control_dt,                      # update every control step
             history_length=1,                       # keep contact history of last 2 steps
             debug_vis=not self._headless,           # visualize contact points if not headless
-            # filter_prim_paths_expr=GROUND_PATH + ".*",
         )
         
         self._contact_sensors = ContactSensor(contact_sensor_cfg)
@@ -327,7 +338,7 @@ class IsaacLabSimulator(Simulator):
         
         env_prim_paths = [f"/World/envs/env_{i}" for i in range(self._num_envs)]
         self._cloner.filter_collisions(physics_scene_path, "/World/collisions",
-                                       env_prim_paths, global_paths=[])
+                                       env_prim_paths, global_paths=[GROUND_PATH])
         
         # reset the simulation to make sure everything is initialized
         self._sim.reset()
@@ -339,12 +350,12 @@ class IsaacLabSimulator(Simulator):
         
         self._get_env_origins()
         
-        self.dof_names = self._robot.joint_names
+        self._dof_names = self._robot.joint_names
         # find the indices (in the robot's joint list) of joints specified in self._cfg.asset.dof_names
-        self._dof_indices = [self.dof_names.index(name) for name in self._cfg.asset.dof_names]
+        self._dof_indices = [self._dof_names.index(name) for name in self._cfg.asset.dof_names]
         print(f"dof indices: {self._dof_indices}")
-        self.num_dof = len(self.dof_names)
-        self.num_bodies = len(self._robot.body_names)
+        self._num_dof = len(self._dof_names)
+        self._num_bodies = len(self._robot.body_names)
         
         def find_link_contact_indices(names: list[str]) -> list[int]:
             """find link indices in bodies of contact sensors based on link names specified in the config for termination and penalty.
@@ -430,6 +441,7 @@ class IsaacLabSimulator(Simulator):
             self._randomize_pd_gain(torch.arange(self._num_envs))
     
     def _init_buffers(self):
+        self._base_pos = torch.zeros_like(self._robot.data.root_link_pos_w)
         self._base_lin_vel = torch.zeros_like(self._robot.data.root_link_lin_vel_b)
         self._base_ang_vel = torch.zeros_like(self._robot.data.root_link_ang_vel_b)
         self._last_dof_vel = torch.zeros_like(self._robot.data.joint_vel)
@@ -439,11 +451,14 @@ class IsaacLabSimulator(Simulator):
         self._d_gains = torch.zeros(self._num_actions, dtype=torch.float, device=self._device, requires_grad=False)
         self._base_quat = torch.zeros(
             (self._num_envs, 4), device=self._device, dtype=torch.float)
+        self._base_euler = get_euler_xyz(self._base_quat)
         self._projected_gravity = torch.zeros((self._num_envs, 3), device=self._device, dtype=torch.float)
         self._global_gravity = torch.tensor([0.0, 0.0, -1.0], device=self._device, dtype=torch.float).repeat(self._num_envs, 1)
         self._base_init_quat = torch.tensor(
             self._cfg.init_state.rot, device=self._device
         )
+        self._feet_pos = torch.zeros_like(self._robot.data.body_link_pos_w[:, self._feet_indices, :])
+        self._feet_vel = torch.zeros_like(self._robot.data.body_link_vel_w[:, self._feet_indices, :3])
         self._last_feet_vel = torch.zeros_like(self._robot.data.body_link_vel_w[:, self._feet_indices, :3])
         # depth images
         if self._cfg.sensor.add_depth:
@@ -468,8 +483,8 @@ class IsaacLabSimulator(Simulator):
                 self._num_envs, len(self._contact_state_link_indices), dtype=torch.float, device=self._device, requires_grad=False)
         
         # joint positions offsets and PD gains
-        for i in range(self.num_dof):
-            name = self.dof_names[i]
+        for i in range(self._num_dof):
+            name = self._dof_names[i]
             found = False
             for dof_name in self._cfg.control.stiffness.keys():
                 if dof_name in name:
@@ -502,7 +517,7 @@ class IsaacLabSimulator(Simulator):
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.
             Otherwise create a grid.
         """
-        if self._cfg.terrain.mesh_type in ["heightfield"]:
+        if self._cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
             self._custom_origins = True
             self._env_origins = torch.zeros(
                 self._num_envs, 3, device=self._device, requires_grad=False)
@@ -516,7 +531,7 @@ class IsaacLabSimulator(Simulator):
                 self._num_envs/self._cfg.terrain.num_cols), rounding_mode='floor').to(torch.long)
             self._max_terrain_level = self._cfg.terrain.num_rows
             self._terrain_origins = torch.from_numpy(
-                self.terrain.env_origins).to(self._device).to(torch.float)
+                self._terrain.env_origins).to(self._device).to(torch.float)
             self._env_origins[:] = self._terrain_origins[self._terrain_levels,
                                                        self._terrain_types]
         else:
@@ -590,21 +605,21 @@ class IsaacLabSimulator(Simulator):
         heights8 = self._height_samples[px-1, py+1]  # [x-0.1, y+0.1]
         heights9 = self._height_samples[px+1, py-1]  # [x+0.1, y-0.1]
         # Calculate normal vectors around feet
-        dx = ((heights2 - heights1) / (self._cfg.terrain.horizontal_scale * 2)).view(self.num_envs, -1)
-        dy = ((heights4 - heights3) / (self._cfg.terrain.horizontal_scale * 2)).view(self.num_envs, -1)
+        dx = ((heights2 - heights1) / (self._cfg.terrain.horizontal_scale * 2)).view(self._num_envs, -1)
+        dy = ((heights4 - heights3) / (self._cfg.terrain.horizontal_scale * 2)).view(self._num_envs, -1)
         for i in range(len(self._feet_indices)):
             normal_vector = torch.cat((dx[:, i].unsqueeze(1), dy[:, i].unsqueeze(1), 
-                -1*torch.ones_like(dx[:, i].unsqueeze(1))), dim=-1).to(self.device)
+                -1*torch.ones_like(dx[:, i].unsqueeze(1))), dim=-1).to(self._device)
             normal_vector /= torch.norm(normal_vector, dim=-1, keepdim=True)
             self._normal_vector_around_feet[:, i*3:i*3+3] = normal_vector[:]
         # Calculate height around feet
         for i in range(9):
-            self._height_around_feet[:, :, i] = eval(f'heights{i+1}').view(self.num_envs, -1)[:] * self._cfg.terrain.vertical_scale
+            self._height_around_feet[:, :, i] = eval(f'heights{i+1}').view(self._num_envs, -1)[:] * self._cfg.terrain.vertical_scale
 
     def _check_base_pos_out_of_bound(self):
         """ Check if the base position is out of the terrain bounds
         """
-        base_pos = self._robot.data.root_link_pos_w.clone().to(self._device)
+        base_pos = self._base_pos.clone().to(self._device)
         x_out_of_bound = (base_pos[:, 0] >= self._terrain_x_range[1]) | (
             base_pos[:, 0] <= self._terrain_x_range[0])
         y_out_of_bound = (base_pos[:, 1] >= self._terrain_y_range[1]) | (
@@ -677,9 +692,9 @@ class IsaacLabSimulator(Simulator):
         self._joint_damping = torch.zeros(
             self._num_envs, 1, dtype=torch.float, device=self._device, requires_grad=False)
         self._kp_scale = torch.ones(
-            self._num_envs, self.num_dof, dtype=torch.float, device=self._device, requires_grad=False)
+            self._num_envs, self._num_dof, dtype=torch.float, device=self._device, requires_grad=False)
         self._kd_scale = torch.ones(
-            self._num_envs, self.num_dof, dtype=torch.float, device=self._device, requires_grad=False)
+            self._num_envs, self._num_dof, dtype=torch.float, device=self._device, requires_grad=False)
     
     def _randomize_friction(self, env_ids):
         if len(env_ids) == 0:
@@ -757,7 +772,7 @@ class IsaacLabSimulator(Simulator):
         # save values to domain randomization params
         self._joint_armature[env_ids, 0] = armature.detach().clone()
         # [len(env_ids)] -> [len(env_ids), num_actions], all joints within the same env have the same armature
-        armature = armature.unsqueeze(1).repeat(1, self.num_actions)
+        armature = armature.unsqueeze(1).repeat(1, self._num_actions)
         # refer to https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.assets.html#isaaclab.assets.Articulation.write_joint_armature_to_sim
         self._robot.write_joint_armature_to_sim(armature, self._dof_indices, env_ids)
     
@@ -770,7 +785,7 @@ class IsaacLabSimulator(Simulator):
             * (max_friction - min_friction) + min_friction
         self._joint_friction[env_ids] = friction.detach().clone()
         # All joints within the same env have the same friction
-        friction = friction.repeat(1, self.num_actions)
+        friction = friction.repeat(1, self._num_actions)
         # refer to https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.assets.html#isaaclab.assets.Articulation.write_joint_friction_coefficient_to_sim
         self._robot.write_joint_friction_coefficient_to_sim(
             friction, None, None, self._dof_indices, env_ids) # currently, only static friction coefficients are considered
@@ -783,16 +798,79 @@ class IsaacLabSimulator(Simulator):
         damping = torch.rand((len(env_ids), 1), dtype=torch.float, device=self._device) \
             * (max_damping - min_damping) + min_damping
         self._joint_damping[env_ids] = damping.detach().clone()
-        damping = damping.repeat(1, self.num_actions)
+        damping = damping.repeat(1, self._num_actions)
         # refer to https://isaac-sim.github.io/IsaacLab/main/source/api/lab/isaaclab.assets.html#isaaclab.assets.Articulation.write_joint_damping_to_sim
         self._robot.write_joint_damping_to_sim(damping, self._dof_indices, env_ids)
         
     def _randomize_pd_gain(self, env_ids):
         self._kp_scale[env_ids] = torch_rand_float(
-                self._cfg.domain_rand.kp_range[0], self._cfg.domain_rand.kp_range[1], (len(env_ids), self.num_actions), device=self._device)
+                self._cfg.domain_rand.kp_range[0], self._cfg.domain_rand.kp_range[1], (len(env_ids), self._num_actions), device=self._device)
         self._kd_scale[env_ids] = torch_rand_float(
-                self._cfg.domain_rand.kd_range[0], self._cfg.domain_rand.kd_range[1], (len(env_ids), self.num_actions), device=self._device)
+                self._cfg.domain_rand.kd_range[0], self._cfg.domain_rand.kd_range[1], (len(env_ids), self._num_actions), device=self._device)
+    
+    def _create_ground_plane(self):
+        import isaaclab.sim as sim_utils
+        from isaaclab.sim.spawners.from_files import GroundPlaneCfg, spawn_ground_plane
+            
+        ground_col = np.array([1.0, 0.9, 0.75])
+        ground_col *= 0.017
+        ground_path = GROUND_PATH
+
+        physics_material = sim_utils.RigidBodyMaterialCfg(static_friction=self._cfg.terrain.static_friction, 
+                                                          dynamic_friction=self._cfg.terrain.dynamic_friction,
+                                                          restitution=self._cfg.terrain.restitution)
+        plane_cfg = GroundPlaneCfg(physics_material=physics_material, 
+                                   color=ground_col, 
+                                   size=(self._cfg.terrain.plane_length, self._cfg.terrain.plane_length))
+        self._terrain = spawn_ground_plane(prim_path=ground_path, cfg=plane_cfg)
+
+    def _create_trimesh(self):
+        from isaaclab.terrains.utils import create_prim_from_mesh
+        import trimesh
+        import isaaclab.sim as sim_utils
         
+        terrain_mesh = trimesh.Trimesh(vertices=self._terrain.vertices, 
+                                       faces=self._terrain.triangles)
+        
+        visual_material = sim_utils.MdlFileCfg(
+            mdl_path="{NVIDIA_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
+            project_uvw=True,
+        )
+        
+        physics_material = sim_utils.RigidBodyMaterialCfg(static_friction=self._cfg.terrain.static_friction, 
+                                                          dynamic_friction=self._cfg.terrain.dynamic_friction,
+                                                          restitution=self._cfg.terrain.restitution)
+        create_prim_from_mesh(GROUND_PATH + "/terrain", terrain_mesh, 
+                              physics_material=physics_material,
+                              visual_material=visual_material,
+                              )
+        
+        self._height_samples = torch.tensor(self._terrain.heightsamples).view(
+            self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
+    
+    def _build_lights(self):
+        import isaaclab.sim as sim_utils
+        import isaacsim.core.utils.prims as prim_utils
+        from pxr import Gf
+
+        light_quat = quat_from_euler_xyz(torch.tensor(0.7),
+                                        torch.tensor(0.0), 
+                                        torch.tensor(0.6))
+        light_quat = light_quat.tolist()
+        distant_light_path = LIGHT_PATH + "/distant_light_xform"
+        light_xform = prim_utils.create_prim(distant_light_path, "Xform")
+
+        gf_quatf = Gf.Quatd()
+        gf_quatf.SetReal(light_quat[-1])
+        gf_quatf.SetImaginary(tuple(light_quat[:-1]))
+        light_xform.GetAttribute("xformOp:orient").Set(gf_quatf)
+
+        distant_light_cfg = sim_utils.DistantLightCfg(intensity=2000.0, color=(0.8, 0.8, 0.8))
+        self._distant_light = distant_light_cfg.func(distant_light_path + "/distant_light", distant_light_cfg)
+
+        dome_light_cfg = sim_utils.DomeLightCfg(intensity=800.0, color=(0.7, 0.7, 0.7))
+        self._dome_light = dome_light_cfg.func(LIGHT_PATH + "/dome_light", dome_light_cfg)
+    
     #----- Properties -----#
     @property
     def dof_pos_limits(self):
@@ -847,42 +925,6 @@ class IsaacLabSimulator(Simulator):
             Tensor: DOF velocities of the robot in the last simulation step.
         """
         return self._last_dof_vel[:, self._dof_indices]
-    
-    @property
-    def feet_pos(self):
-        """Returns the positions of the feet in the world frame.
-
-        Returns:
-            Tensor: Positions of the feet in the world frame.
-        """
-        return self._robot.data.body_link_pos_w[:, self.feet_indices, :3]
-    
-    @property
-    def feet_vel(self):
-        """Returns the velocities of the feet in the world frame.
-
-        Returns:
-            Tensor: Velocities of the feet in the world frame.
-        """
-        return self._robot.data.body_link_vel_w[:, self.feet_indices, :3]
-    
-    @property
-    def last_feet_vel(self):
-        """Returns the velocities of the feet in the world frame in the last simulation step.
-
-        Returns:
-            Tensor: Velocities of the feet in the world frame in the last simulation step.
-        """
-        return self._last_feet_vel
-    
-    @property
-    def base_pos(self):
-        """Returns the base position of the robot in the world frame.
-
-        Returns:
-            Tensor: Base position of the robot in the world frame.
-        """
-        return self._robot.data.root_link_pos_w
     
     @property
     def link_contact_forces(self):

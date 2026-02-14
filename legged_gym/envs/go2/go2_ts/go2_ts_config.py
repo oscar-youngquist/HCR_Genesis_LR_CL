@@ -25,7 +25,7 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         else:
             mesh_type = "trimesh"  # for isaacgym
         restitution = 0.
-        border_size = 20.0 # [m]
+        border_size = 10.0 # [m]
         curriculum = True
         # rough terrain only:
         obtain_terrain_info_around_feet = True
@@ -74,6 +74,7 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         obtain_link_contact_states = True
         contact_state_link_names = ["thigh", "calf", "foot"]
         foot_name = "foot"
+        base_link_name = "base"  # full name of the base link
         penalize_contacts_on = ["thigh", "calf", "base", "Head"]
         terminate_after_contacts_on = []
         # Genesis: 
@@ -91,11 +92,14 @@ class Go2TSCfg( LeggedRobotTSCfg ):
             'RL_thigh_joint',
             'RL_calf_joint',]
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
+        dof_vel_limits = [30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7]
         # IsaacGym:
         flip_visual_attachments = False
   
     class rewards( LeggedRobotTSCfg.rewards ):
-        base_height_target = 1.
         soft_dof_pos_limit = 0.9
         base_height_target = 0.5
         foot_clearance_target = 0.09 # desired foot clearance above ground [m]
@@ -156,18 +160,6 @@ class Go2TSCfg( LeggedRobotTSCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
     
-    class sensor( LeggedRobotTSCfg.sensor ):
-        add_depth = True
-        class depth_camera_config( LeggedRobotTSCfg.sensor.depth_camera_config ):
-            near_clip = 0.175
-            far_clip = 2.0
-            near_plane = 0.1
-            far_plane = 10.0
-            resolution = (160, 120)
-            horizontal_fov_deg = 75
-            pos = (0.33, 0.0, 0.1)
-            euler = (0.0, 1.87, 0.0) # the default camera frame is the same as world frame(x-forward, y-left, z-up)
-
 class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
     seed = 1
     class policy( LeggedRobotTSCfgPPO.policy ):
@@ -190,8 +182,8 @@ class Go2TSCfgPPO( LeggedRobotTSCfgPPO ):
             run_name += '_genesis'
         elif SIMULATOR == "isaacgym":
             run_name += '_isaacgym'
+        elif SIMULATOR == "isaaclab":
+            run_name += '_isaaclab'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = "Nov19_20-45-02_ts_with_lin_vel"
-        checkpoint = -1
         max_iterations = 3000

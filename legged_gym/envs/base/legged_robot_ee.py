@@ -68,6 +68,13 @@ class LeggedRobotEE(LeggedRobot):
             self.action_queue[:, 0] = actions.clone()
             actions = self.action_queue[torch.arange(
                 self.num_envs), self.action_delay].clone()
+        
+        # during training, the camera follows the first environment
+        if not self.debug and not self.headless:
+            pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
+            lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
+            self.set_viewer_camera(pos, lookat)
+            
         self.simulator.step(actions)
         self.post_physics_step()
 

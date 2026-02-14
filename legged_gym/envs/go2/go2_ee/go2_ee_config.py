@@ -13,13 +13,13 @@ class Go2EECfg( LeggedRobotEECfg ):
         num_privileged_obs = c_frame_stack * single_critic_obs_len
         # privileged_obs here is actually critic_obs
         num_actions = 12
-        env_spacing = 0.5
+        env_spacing = 2.0
     
     class terrain( LeggedRobotEECfg.terrain ):
         if SIMULATOR == "genesis":
             mesh_type = "heightfield" # for genesis
         else:
-            mesh_type = "trimesh"  # for isaacgym
+            mesh_type = "trimesh"  # for isaacgym and isaaclab
         restitution = 0.
         border_size = 10.0 # [m]
         curriculum = True
@@ -28,9 +28,9 @@ class Go2EECfg( LeggedRobotEECfg ):
         measure_heights = True
         measured_points_x = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4] # 9x9=81
         measured_points_y = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4]
-        terrain_length = 8.0
-        terrain_width = 8.0
-        num_rows = 10  # number of terrain rows (levels)
+        terrain_length = 6.0
+        terrain_width = 6.0
+        num_rows = 6  # number of terrain rows (levels)
         num_cols = 10  # number of terrain cols (types)
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.2, 0.1, 0.25, 0.25, 0.2]
@@ -70,9 +70,9 @@ class Go2EECfg( LeggedRobotEECfg ):
         obtain_link_contact_states = True
         contact_state_link_names = ["thigh", "calf", "foot", "base", "hip"]
         foot_name = "foot"
+        base_link_name = "base"  # full name of the base link
         penalize_contacts_on = ["thigh", "calf", "base", "Head", "hip"]
         terminate_after_contacts_on = []
-        # Genesis: 
         dof_names = [        # specify the sequence of actions
             'FR_hip_joint',
             'FR_thigh_joint',
@@ -86,7 +86,12 @@ class Go2EECfg( LeggedRobotEECfg ):
             'RL_hip_joint',
             'RL_thigh_joint',
             'RL_calf_joint',]
+        # Genesis: 
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
+        dof_vel_limits = [30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7, 
+                          30.1, 30.1, 15.7]
         # IsaacGym:
         flip_visual_attachments = False
   
@@ -141,14 +146,14 @@ class Go2EECfg( LeggedRobotEECfg ):
         com_pos_x_range = [-0.03, 0.03]
         com_pos_y_range = [-0.03, 0.03]
         com_pos_z_range = [-0.03, 0.03]
-        randomize_pd_gain = True
+        randomize_pd_gain = False
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
         randomize_joint_armature = False
-        joint_armature_range = [0.015, 0.025]  # [N*m*s/rad]
         randomize_joint_friction = False
-        joint_friction_range = [0.01, 0.02]
         randomize_joint_damping = False
+        joint_armature_range = [0.015, 0.025]  # [N*m*s/rad]
+        joint_friction_range = [0.01, 0.02]
         joint_damping_range = [0.25, 0.3]
 
 class Go2EECfgPPO( LeggedRobotEECfgPPO ):
@@ -159,12 +164,13 @@ class Go2EECfgPPO( LeggedRobotEECfgPPO ):
         estimator_lr = 2.e-4
         num_estimator_epochs = 1
     class runner( LeggedRobotEECfgPPO.runner ):
+        run_name = "ee"
         if SIMULATOR == "genesis":
-            run_name = "gs_ee"
-        else:
-            run_name = 'gym_ee'
+            run_name += '_genesis'
+        elif SIMULATOR == "isaacgym":
+            run_name += '_isaacgym'
+        elif SIMULATOR == "isaaclab":
+            run_name += '_isaaclab'
         experiment_name = 'go2_rough'
         save_interval = 500
-        load_run = ""
-        checkpoint = -1
         max_iterations = 5000

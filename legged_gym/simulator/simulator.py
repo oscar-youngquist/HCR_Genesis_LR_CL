@@ -433,6 +433,15 @@ class Simulator(ABC):
         return self._base_quat
     
     @property
+    def base_euler(self):
+        """Returns the base orientation (euler angles) of the robot in the world frame.
+
+        Returns:
+            Tensor((num_envs, 3)): Base orientation (euler angles) of the robot in the world frame.
+        """
+        return self._base_euler
+    
+    @property
     def measured_heights(self):
         """Returns the measured heights of the sampling points around the robot.
 

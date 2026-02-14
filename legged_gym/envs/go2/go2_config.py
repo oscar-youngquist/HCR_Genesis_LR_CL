@@ -12,7 +12,6 @@ class GO2Cfg( LeggedRobotCfg ):
     
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = "plane" # none, plane, heightfield
-        plane_length = 100.0
         
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]

@@ -8,6 +8,8 @@ from legged_gym.utils.math_utils import wrap_to_pi, quat_apply, torch_rand_float
 class Go2EE(LeggedRobotEE):
 
     def compute_observations(self):
+        print(f"lin vel z: {self.simulator.base_lin_vel[0, 2].cpu().numpy()}")
+        print(f"base pos: {self.simulator.base_pos[0, :].cpu().numpy()}")
         obs_buf = torch.cat((
             self.commands[:, :3] * self.commands_scale,                     # 3
             self.simulator.projected_gravity,                                         # 3
@@ -28,9 +30,6 @@ class Go2EE(LeggedRobotEE):
                      self.kp_scale_offset),                 # num_actions
                     (self.simulator._kd_scale - 
                      self.kd_scale_offset),                 # num_actions
-                    # self.simulator._joint_armature,         # 1
-                    # self.simulator._joint_friction,        # 1
-                    # self.simulator._joint_damping,          # 1
             ), dim=-1)
         
         # Critic observation
