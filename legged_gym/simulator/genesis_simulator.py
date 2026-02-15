@@ -262,7 +262,7 @@ class GenesisSimulator(Simulator):
             self._gs_terrain = self._scene.add_entity(
                 gs.morphs.URDF(file="urdf/plane/plane.urdf", fixed=True))
         elif mesh_type == 'heightfield':
-            self.terrain = Terrain(self._cfg.terrain)
+            self._terrain = Terrain(self._cfg.terrain)
             self._create_heightfield()
         elif mesh_type is not None:
             raise ValueError(
@@ -522,7 +522,7 @@ class GenesisSimulator(Simulator):
                 self._num_envs/self._cfg.terrain.num_cols), rounding_mode='floor').to(torch.long)
             self._max_terrain_level = self._cfg.terrain.num_rows
             self._terrain_origins = torch.from_numpy(
-                self.terrain.env_origins).to(self._device).to(torch.float)
+                self._terrain.env_origins).to(self._device).to(torch.float)
             self._env_origins[:] = self._terrain_origins[self._terrain_levels,
                                                        self._terrain_types]
         else:
@@ -769,11 +769,11 @@ class GenesisSimulator(Simulator):
                      self._cfg.terrain.border_size, 0.0),
                 horizontal_scale=self._cfg.terrain.horizontal_scale,
                 vertical_scale=self._cfg.terrain.vertical_scale,
-                height_field=self.terrain.height_field_raw,
+                height_field=self._terrain.height_field_raw,
             ),
         )
-        self._height_samples = torch.tensor(self.terrain.heightsamples).view(
-            self.terrain.tot_rows, self.terrain.tot_cols).to(self._device)
+        self._height_samples = torch.tensor(self._terrain.heightsamples).view(
+            self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
 
     def _setup_depth_camera(self):
         ''' Set camera position and direction

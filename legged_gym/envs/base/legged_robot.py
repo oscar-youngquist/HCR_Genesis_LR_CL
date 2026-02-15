@@ -248,6 +248,8 @@ class LeggedRobot(BaseTask):
             pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
             lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
             self.set_viewer_camera(pos, lookat)
+        
+        return actions
     
     def _update_terrain_curriculum(self, env_ids):
         """ Implements the game-inspired curriculum.
