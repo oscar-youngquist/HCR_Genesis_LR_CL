@@ -24,29 +24,46 @@ def override_configs(env_cfg, args):
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
     if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
-        env_cfg.terrain.num_rows = 2
-        env_cfg.terrain.num_cols = 2
+        env_cfg.terrain.num_rows = 4
+        env_cfg.terrain.num_cols = 4
+        env_cfg.terrain.border_size = 1.0
         env_cfg.terrain.curriculum = True
         env_cfg.terrain.selected = False
-        env_cfg.env.debug_draw_height_points = True
+        env_cfg.env.debug_draw_terrain_height_points = False
         
-        # stairs
-        env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-                                        "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
-        # single stair
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-        #                                   "step_width": 1.0, "step_height": -0.05, "platform_size": 3.0}
+        
+        # random uniform terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.random_uniform_terrain", 
+        #                                   "min_height" : -0.05, "max_height": 0.05, 
+        #                                   "step":0.005, "downsampled_scale" : 0.2}
         # slope
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
         #                                   "slope": -0.4, "platform_size": 3.0}
-        # # discrete obstacles
+        # stairs
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
+        #                                 "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
+        # discrete obstacles
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
         #                                   "max_height": 0.1,
         #                                   "min_size": 1.0,
         #                                   "max_size": 2.0,
         #                                   "num_rects": 20,
         #                                   "platform_size": 3.0}
-    
+        # wave terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.wave_terrain", 
+        #                                   "amplitude": 0.1, "num_waves": 2}
+        # stepping stones
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.stepping_stones_terrain",
+        #                                   "stone_size": 1.0, "max_height": 0.1,
+        #                                   "stone_distance": 0.3, "platform_size": 3.0}
+        # gap terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.gap_terrain", 
+        #                                   "gap_size": 0.2, "platform_size": 3.0}
+        # pit terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pit_terrain", 
+        #                                   "depth": 0.2, "platform_size": 3.0}
+        
+        
     env_cfg.env.debug = True
     
     if args.use_joystick:
@@ -96,7 +113,7 @@ def interaction_loop(env, policy, args):
     # Setup joystick if needed
     if args.use_joystick:
         joystick = Joystick(joystick_type=args.joystick_type)
-
+    
     # interaction loop
     for i in range(10*int(env.max_episode_length)):
         

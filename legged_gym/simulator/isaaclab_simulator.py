@@ -234,10 +234,6 @@ class IsaacLabSimulator(Simulator):
         source_env_path = "/World/envs/env_0"
         prim_paths = self._cloner.generate_paths("/World/envs/env", self._num_envs)
         self._stage.DefinePrim(source_env_path, "Xform")
-        self._cloner.clone(source_prim_path=source_env_path,
-                          prim_paths=prim_paths,
-                          replicate_physics=False,
-                          copy_from_source=True)
         
         articulation_props = sim_utils.ArticulationRootPropertiesCfg(
                     enabled_self_collisions=not self._cfg.asset.self_collisions, 
@@ -283,7 +279,7 @@ class IsaacLabSimulator(Simulator):
         
         # create the first prim of env 0, then clone other envs
         articulation_cfg = ArticulationCfg(
-                prim_path=f"/World/envs/env_0/{self._cfg.asset.name}",
+                prim_path=f"/World/envs/env_.*/{self._cfg.asset.name}",
                 spawn=urdf_cfg,
                 init_state=init_state,
                 actuator_value_resolution_debug_print=False,
@@ -291,25 +287,14 @@ class IsaacLabSimulator(Simulator):
                 collision_group=0,
                 soft_joint_pos_limit_factor=self._cfg.rewards.soft_dof_pos_limit
             )
-        prim = Articulation(articulation_cfg)
-        # clone other envs
-        clone_paths = [f"/World/envs/env_{i}/{self._cfg.asset.name}" for i in range(1, self._num_envs)]
-        clones_positions = torch.tensor(self._cfg.init_state.pos).repeat(self._num_envs-1, 1)
-        clone_rots = torch.tensor(rot_sim).repeat(self._num_envs-1, 1)
-        self._cloner.clone(source_prim_path=f"/World/envs/env_0/{self._cfg.asset.name}",
-                           prim_paths=clone_paths,
-                           positions=clones_positions,
-                           orientations=clone_rots,
-                           copy_from_source=True)
-        
-        # create articulation object for all envs
-        articulation_cfg = ArticulationCfg(
-            prim_path=f"/World/envs/env_.*/{self._cfg.asset.name}",
-            spawn=None,  # already spawned
-            init_state=init_state,
-            actuators=actuator_cfg,
-        )
         self._robot = Articulation(articulation_cfg)
+        # clone other envs
+        self._cloner.clone(source_prim_path=f"/World/envs/env_0",
+                           prim_paths=prim_paths,
+                           copy_from_source=False,
+                           replicate_physics=True,
+                           base_env_path=f"/World/envs",
+                           enable_env_ids=True)
         
         # Add contact sensors
         contact_sensor_cfg = ContactSensorCfg(
@@ -624,10 +609,10 @@ class IsaacLabSimulator(Simulator):
         # check if the base height is lower than the minimum height of the terrain
         # TODO: this is a temporary solution to prevent the robot from falling through the terrain
         # TODO: we still need to create terrain directly from mesh to reduce vertices and faces, therefore avoiding missing interaction
-        if self._cfg.terrain.mesh_type in ['heightfield', 'trimesh']:
-            min_height = torch.min(self._height_samples) * self._cfg.terrain.vertical_scale
-            z_out_of_bound = base_pos[:, 2] <= min_height
-            y_out_of_bound = y_out_of_bound | z_out_of_bound
+        # if self._cfg.terrain.mesh_type in ['heightfield', 'trimesh']:
+        #     min_height = torch.min(self._height_samples) * self._cfg.terrain.vertical_scale
+        #     z_out_of_bound = base_pos[:, 2] <= min_height
+        #     y_out_of_bound = y_out_of_bound | z_out_of_bound
         out_of_bound_buf = x_out_of_bound | y_out_of_bound
         env_ids = out_of_bound_buf.nonzero(as_tuple=False).flatten()
         if len(env_ids) == 0:
@@ -830,11 +815,8 @@ class IsaacLabSimulator(Simulator):
 
     def _create_trimesh(self):
         from isaaclab.terrains.utils import create_prim_from_mesh
-        import trimesh
         import isaaclab.sim as sim_utils
         
-        terrain_mesh = trimesh.Trimesh(vertices=self._terrain.vertices, 
-                                       faces=self._terrain.triangles)
         
         visual_material = sim_utils.MdlFileCfg(
             mdl_path="{NVIDIA_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
@@ -844,12 +826,13 @@ class IsaacLabSimulator(Simulator):
         physics_material = sim_utils.RigidBodyMaterialCfg(static_friction=self._cfg.terrain.static_friction, 
                                                           dynamic_friction=self._cfg.terrain.dynamic_friction,
                                                           restitution=self._cfg.terrain.restitution)
-        create_prim_from_mesh(GROUND_PATH + "/terrain", terrain_mesh, 
+        create_prim_from_mesh(GROUND_PATH + "/terrain", 
+                              self._terrain.terrain_mesh, 
                               physics_material=physics_material,
                               visual_material=visual_material,
                               translation=(
-                                  -self._cfg.terrain.border_size,
-                                  -self._cfg.terrain.border_size,
+                                  -self._cfg.terrain.border_size - self._cfg.terrain.horizontal_scale / 2.0,
+                                  -self._cfg.terrain.border_size - self._cfg.terrain.horizontal_scale / 2.0,
                                   0.0
                               )
                               )

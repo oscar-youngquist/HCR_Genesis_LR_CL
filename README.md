@@ -12,7 +12,11 @@ A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for
   
   We support training in either of three simulators: IsaacGym, Genesis and IsaacSim.
   
-  A quick tip for choosing among three simulators: If you want faster training, use IsaacGym; If you want both training speed and support for fluid, soft materials, use Genesis; If you want more realistic rendering, use IsaacSim.
+  Quick tips for choosing among three simulators: 
+  
+  - Faster training but worse rendering -> IsaacGym
+  - Both training speed and support for fluid, soft materials -> Genesis 
+  - More realistic rendering at the cost of training speed -> IsaacSim.
 
 - **Incorporation of various methods in published RL papers**
   

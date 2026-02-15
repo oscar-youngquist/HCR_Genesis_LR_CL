@@ -264,9 +264,11 @@ class GenesisSimulator(Simulator):
         elif mesh_type == 'heightfield':
             self._terrain = Terrain(self._cfg.terrain)
             self._create_heightfield()
-        elif mesh_type is not None:
-            raise ValueError(
-                "Terrain mesh type not recognised. Allowed types are [None, plane, heightfield, trimesh]")
+        elif mesh_type == 'trimesh':
+            self._terrain = Terrain(self._cfg.terrain)
+            self._create_trimesh()
+        else:
+            raise ValueError(f"Unsupported terrain mesh type: {mesh_type}")
         self._gs_terrain.set_friction(self._cfg.terrain.static_friction)
         # specify the boundary of the heightfield
         self._terrain_x_range = torch.zeros(2, device=self._device)
@@ -772,8 +774,30 @@ class GenesisSimulator(Simulator):
                 height_field=self._terrain.height_field_raw,
             ),
         )
+        self._height_samples = torch.tensor(self.terrain.heightsamples).view(
+            self.terrain.tot_rows, self.terrain.tot_cols).to(self._device)
+    
+    def _create_trimesh(self):
+        """ Adds a trimesh terrain to the simulation, sets parameters based on the cfg.
+        """
+        # export terrain mesh to {LEGGED_GYM_ROOT_DIR}/resources/terrains/trimesh_terrain.stl
+        trimesh_terrain_path = os.path.join(LEGGED_GYM_ROOT_DIR, "resources", "terrains", "trimesh_terrain.stl")
+        self._terrain.terrain_mesh.export(trimesh_terrain_path)
+        print(f"Exported terrain mesh to {trimesh_terrain_path}")
+        
+        # add terrain to the scene
+        self._gs_terrain = self._scene.add_entity(
+            gs.morphs.TriMesh(
+                file=trimesh_terrain_path,
+                pos=(-self._cfg.terrain.border_size - self._cfg.terrain.horizontal_scale/2.0,
+                     -self._cfg.terrain.border_size - self._cfg.terrain.horizontal_scale/2.0, 
+                     0.0),
+                fixed=True,
+            ),
+        )
+        # save height samples for height sampling
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(
-            self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
+            self._terrain.num_rows, self._terrain.num_cols).to(self._device)
 
     def _setup_depth_camera(self):
         ''' Set camera position and direction

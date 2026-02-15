@@ -157,10 +157,12 @@ class IsaacGymSimulator(Simulator):
         #     return
         self._gym.clear_lines(self._viewer)
         self._gym.refresh_rigid_body_state_tensor(self._sim)
-        if self._cfg.env.debug_draw_height_points:
-            self._draw_height_points()
+        if self._cfg.env.debug_draw_height_points_around_base:
+            self._draw_height_points_around_base()
         if self._cfg.env.debug_draw_height_points_around_feet:
             self._draw_height_points_around_feet()
+        if self._cfg.env.debug_draw_terrain_height_points:
+            self._draw_terrain_height_points()
     
     def set_viewer_camera(self, eye: np.ndarray, target: np.ndarray):
         cam_pos = gymapi.Vec3(eye[0], eye[1], eye[2])
@@ -736,13 +738,27 @@ class IsaacGymSimulator(Simulator):
                 sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
                 gymutil.draw_lines(sphere_geom, self._gym, self._viewer, self._envs[i], sphere_pose)
     
-    def _draw_height_points(self):
+    
+    def _draw_terrain_height_points(self):
+        """ Draws height measurement points in the terrain for debugging
+        """
+         # draw height lines
+        if not self._cfg.terrain.measure_heights:
+            return
+        sphere_geom = gymutil.WireframeSphereGeometry(0.03, 8, 8, None, color=(1, 1, 0))
+        for i in range(self._height_samples.shape[0]):
+            for j in range(self._height_samples.shape[1]):
+                x = i * self._cfg.terrain.horizontal_scale - self._cfg.terrain.border_size
+                y = j * self._cfg.terrain.horizontal_scale - self._cfg.terrain.border_size
+                z = self._height_samples[i, j].cpu().numpy() * self._cfg.terrain.vertical_scale
+                sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
+                gymutil.draw_lines(sphere_geom, self._gym, self._viewer, self._envs[0], sphere_pose)
+    
+    def _draw_height_points_around_base(self):
         # draw height lines
         if not self._cfg.terrain.measure_heights:
             return
-        self._gym.clear_lines(self._viewer)
-        self._gym.refresh_rigid_body_state_tensor(self._sim)
-        sphere_geom = gymutil.WireframeSphereGeometry(0.02, 4, 4, None, color=(1, 1, 0))
+        sphere_geom = gymutil.WireframeSphereGeometry(0.03, 8, 8, None, color=(1, 1, 0))
         for i in range(self._num_envs):
             base_pos = (self._root_states[i, :3]).cpu().numpy()
             heights = self._measured_heights[i].cpu().numpy()
@@ -1024,32 +1040,39 @@ class IsaacGymSimulator(Simulator):
         hf_params.column_scale = self._terrain.cfg.horizontal_scale
         hf_params.row_scale = self._terrain.cfg.horizontal_scale
         hf_params.vertical_scale = self._terrain.cfg.vertical_scale
-        hf_params.nbRows = self._terrain.tot_cols
-        hf_params.nbColumns = self._terrain.tot_rows 
+        hf_params.nbRows = self._terrain.tot_rows
+        hf_params.nbColumns = self._terrain.tot_cols 
         hf_params.transform.p.x = -self._terrain.cfg.border_size 
         hf_params.transform.p.y = -self._terrain.cfg.border_size
         hf_params.transform.p.z = 0.0
         hf_params.static_friction = self._cfg.terrain.static_friction
         hf_params.dynamic_friction = self._cfg.terrain.dynamic_friction
         hf_params.restitution = self._cfg.terrain.restitution
-
-        self._gym.add_heightfield(self._sim, self._terrain.heightsamples, hf_params)
+        self._gym.add_heightfield(self._sim, 
+                                  self._terrain.heightsamples.transpose(), # column first order
+                                  hf_params)
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
 
     def _create_trimesh(self):
         """ Adds a triangle mesh terrain to the simulation, sets parameters based on the cfg.
         # """
         tm_params = gymapi.TriangleMeshParams()
-        tm_params.nb_vertices = self._terrain.vertices.shape[0]
-        tm_params.nb_triangles = self._terrain.triangles.shape[0]
+        tm_params.nb_vertices = self._terrain.terrain_mesh.vertices.shape[0]
+        tm_params.nb_triangles = self._terrain.terrain_mesh.faces.shape[0]
 
-        tm_params.transform.p.x = -self._terrain.cfg.border_size 
-        tm_params.transform.p.y = -self._terrain.cfg.border_size
+        # give a small offset (horizontal_scale/2) to the terrain position to align trimesh with heightfield
+        tm_params.transform.p.x = -self._terrain.cfg.border_size - self._cfg.terrain.horizontal_scale / 2.0
+        tm_params.transform.p.y = -self._terrain.cfg.border_size - self._cfg.terrain.horizontal_scale / 2.0
         tm_params.transform.p.z = 0.0
         tm_params.static_friction = self._cfg.terrain.static_friction
         tm_params.dynamic_friction = self._cfg.terrain.dynamic_friction
         tm_params.restitution = self._cfg.terrain.restitution
-        self._gym.add_triangle_mesh(self._sim, self._terrain.vertices.flatten(order='K'), self._terrain.triangles.flatten(order='K'), tm_params)   
+        vertices = np.array(self._terrain.terrain_mesh.vertices, dtype=np.float32)
+        triangles = np.array(self._terrain.terrain_mesh.faces, dtype=np.uint32)
+        self._gym.add_triangle_mesh(self._sim, 
+                                    vertices.flatten(order='K'), 
+                                    triangles.flatten(order='K'), 
+                                    tm_params)
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
     
     #----- Properties -----#

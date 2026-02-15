@@ -13,7 +13,8 @@ dependencies = [
                 'torch',
                 'torchvision',
                 'numpy',
-                'pygame'
+                'pygame',
+                'trimesh'
 ]
 
 [project.optional-dependencies]

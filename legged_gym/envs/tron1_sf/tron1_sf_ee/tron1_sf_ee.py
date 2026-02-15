@@ -51,10 +51,6 @@ class TRON1SF_EE(LeggedRobotEE):
         
         if self.debug:
             self.simulator.draw_debug_vis()
-            if self.cfg.env.debug_draw_height_points:
-                self.simulator.draw_height_points()
-            if self.cfg.env.debug_draw_height_points_around_feet:
-                self.simulator.draw_height_points_around_feet()
     
     def compute_observations(self):
         obs_buf = torch.cat((
