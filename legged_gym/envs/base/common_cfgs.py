@@ -77,7 +77,7 @@ class Go2RoughCommonCfg(Go2FlatCommonCfg):
             mesh_type = "trimesh"
         else:
             mesh_type = "heightfield"
-        border_size = 5.0 # [m]
+        border_size = 20.0 # [m]
         curriculum = True
         # rough terrain only:
         obtain_terrain_info_around_feet = True

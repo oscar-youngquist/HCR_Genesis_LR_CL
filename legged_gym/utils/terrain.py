@@ -29,8 +29,6 @@
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
 import numpy as np
-from numpy.random import choice
-from scipy import interpolate
 import trimesh
 
 from . import terrain_utils
@@ -62,11 +60,16 @@ class Terrain:
     
         self.height_field_raw = np.zeros((self.tot_rows , self.tot_cols), dtype=np.int16)
         self.terrain_meshes = []
+        if cfg.curriculum and cfg.selected:
+            raise ValueError("Curriculum and selected terrain cannot be both True.")
         if cfg.curriculum:
+            print("Generating curriculum terrain...")
             self.curiculum()
         elif cfg.selected:
+            print("Generating selected terrain...")
             self.selected_terrain()
-        else:    
+        else:
+            print("Generating randomized terrain...")
             self.randomized_terrain()   
         
         self.heightsamples = self.height_field_raw
@@ -90,7 +93,6 @@ class Terrain:
             self.add_terrain_to_map(terrain, i, j)
         
     def curiculum(self):
-        print(f"Terrain Curriculum ON")
         for j in range(self.cfg.num_cols):     # Y
             for i in range(self.cfg.num_rows): # X
                 difficulty = i / self.cfg.num_rows      # add difficulty along X axis, row
@@ -128,17 +130,13 @@ class Terrain:
         gap_size = 1. * difficulty
         pit_depth = 0.3 * difficulty
         if choice < self.proportions[0]:
-            if choice < self.proportions[0]/ 2:
+            if choice < self.proportions[0]/ 2: # slope
                 slope *= -1
             terrain_utils.pyramid_sloped_terrain(terrain, 
                                                  slope=slope, 
                                                  platform_size=self.platform_size,
                                                  terrain_type=self.type)
-        elif choice < self.proportions[1]:
-            terrain_utils.pyramid_sloped_terrain(terrain, 
-                                                 slope=slope, 
-                                                 platform_size=self.platform_size,
-                                                 terrain_type=self.type)
+        elif choice < self.proportions[1]: # random uniform
             terrain_utils.random_uniform_terrain(terrain, 
                                                  min_height=-0.05, 
                                                  max_height=0.05, 
@@ -146,14 +144,14 @@ class Terrain:
                                                  downsampled_scale=0.2, 
                                                  terrain_type=self.type)
         elif choice < self.proportions[3]:
-            if choice<self.proportions[2]:
+            if choice<self.proportions[2]: # stairs
                 step_height *= -1
             terrain_utils.pyramid_stairs_terrain(terrain, 
                                                  step_width=0.4, 
                                                  step_height=step_height, 
                                                  platform_size=self.platform_size,
                                                  terrain_type=self.type)
-        elif choice < self.proportions[4]:
+        elif choice < self.proportions[4]: # discrete obstacles
             num_rectangles = 20
             rectangle_min_size = 1.
             rectangle_max_size = 2.
@@ -164,19 +162,19 @@ class Terrain:
                                                      num_rectangles, 
                                                      platform_size=self.platform_size,
                                                      terrain_type=self.type)
-        elif choice < self.proportions[5]:
+        elif choice < self.proportions[5]: # stepping stones
             terrain_utils.stepping_stones_terrain(terrain, 
                                                   stone_size=stepping_stones_size, 
                                                   stone_distance=stone_distance, 
                                                   max_height=0., 
                                                   platform_size=self.platform_size,
                                                   terrain_type=self.type)
-        elif choice < self.proportions[6]:
+        elif choice < self.proportions[6]: # gap
             terrain_utils.gap_terrain(terrain, 
                                       gap_size=gap_size, 
                                       platform_size=self.platform_size,
                                       terrain_type=self.type)
-        else:
+        else: # pit
             terrain_utils.pit_terrain(terrain, 
                                       depth=pit_depth, 
                                       platform_size=self.platform_size,
@@ -205,7 +203,7 @@ class Terrain:
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         
         if self.type == "trimesh":
-            # apply translation to the trimesh
+            # apply translation to the trimesh, align with the env origin
             translation = np.array([
                 start_x * terrain.horizontal_scale,
                 start_y * terrain.horizontal_scale,

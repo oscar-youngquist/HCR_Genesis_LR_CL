@@ -16,7 +16,10 @@ class LeggedRobotCfg(BaseConfig):
         fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
 
     class terrain:
-        mesh_type = 'plane' # "heightfield" # none, plane, heightfield
+        
+        # heightfield uses a grid of height samples to represent the terrain, creating enomous points
+        # trimesh creates terrain mesh directly
+        mesh_type = 'plane' # plane, heightfield, trimesh
         plane_length = 200.0 # [m]. plane size is 200x200x10 by default
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
@@ -205,7 +208,7 @@ class LeggedRobotCfg(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = 0
-        pos = [1.0, 1.0, 0.5]       # [m], relative to the robot position
+        pos = [5.0, 5.0, 1.0]       # [m], relative to the robot position
         lookat = [0., 0, 0.]  # [m], relative to the robot position
         rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
     

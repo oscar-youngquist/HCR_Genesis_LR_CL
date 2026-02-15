@@ -1040,24 +1040,23 @@ class IsaacGymSimulator(Simulator):
         hf_params.column_scale = self._terrain.cfg.horizontal_scale
         hf_params.row_scale = self._terrain.cfg.horizontal_scale
         hf_params.vertical_scale = self._terrain.cfg.vertical_scale
-        hf_params.nbRows = self._terrain.tot_cols
-        hf_params.nbColumns = self._terrain.tot_rows 
+        hf_params.nbRows = self._terrain.tot_rows
+        hf_params.nbColumns = self._terrain.tot_cols 
         hf_params.transform.p.x = -self._terrain.cfg.border_size 
         hf_params.transform.p.y = -self._terrain.cfg.border_size
         hf_params.transform.p.z = 0.0
         hf_params.static_friction = self._cfg.terrain.static_friction
         hf_params.dynamic_friction = self._cfg.terrain.dynamic_friction
         hf_params.restitution = self._cfg.terrain.restitution
-
-        self._gym.add_heightfield(self._sim, self._terrain.heightsamples, hf_params)
+        self._gym.add_heightfield(self._sim, 
+                                  self._terrain.heightsamples.transpose(), # column first order
+                                  hf_params)
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
 
     def _create_trimesh(self):
         """ Adds a triangle mesh terrain to the simulation, sets parameters based on the cfg.
         # """
         tm_params = gymapi.TriangleMeshParams()
-        # tm_params.nb_vertices = self._terrain.vertices.shape[0]
-        # tm_params.nb_triangles = self._terrain.triangles.shape[0]
         tm_params.nb_vertices = self._terrain.terrain_mesh.vertices.shape[0]
         tm_params.nb_triangles = self._terrain.terrain_mesh.faces.shape[0]
 
@@ -1074,7 +1073,6 @@ class IsaacGymSimulator(Simulator):
                                     vertices.flatten(order='K'), 
                                     triangles.flatten(order='K'), 
                                     tm_params)
-        # self._gym.add_triangle_mesh(self._sim, self._terrain.vertices.flatten(order='K'), self._terrain.triangles.flatten(order='K'), tm_params)   
         self._height_samples = torch.tensor(self._terrain.heightsamples).view(self._terrain.tot_rows, self._terrain.tot_cols).to(self._device)
     
     #----- Properties -----#
