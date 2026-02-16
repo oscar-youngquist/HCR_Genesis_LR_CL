@@ -13,7 +13,8 @@ dependencies = [
                 'torch',
                 'torchvision',
                 'numpy',
-                'pygame'
+                'pygame',
+                'trimesh'
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,10 @@ genesis = [
     "matplotlib==3.10.6",
     "tensorboard==2.20.0",
     "libigl==2.5.1",  # for genesis 0.2.1, see https://github.com/Genesis-Embodied-AI/Genesis/issues/1156#issuecomment-3069006079
+]
+isaaclab = [
+    "isaaclab",
+    "isaacsim"
 ]
 
 [tool.setuptools]

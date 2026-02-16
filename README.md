@@ -1,14 +1,22 @@
 # 🦿 LeggedGym-Ex
 
-A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for training legged robots in [Genesis](https://github.com/Genesis-Embodied-AI/Genesis/tree/main) and [IsaacGym](https://developer.nvidia.com/isaac-gym)
+A [legged_gym](https://github.com/leggedrobotics/legged_gym) based framework for training legged robots in [Genesis](https://github.com/Genesis-Embodied-AI/Genesis/tree/main), [IsaacGym](https://developer.nvidia.com/isaac-gym) and [IsaacSim](https://developer.nvidia.com/isaac/sim).
 
 ## 🌟 Features
 
 - **Totally based on [legged_gym](https://github.com/leggedrobotics/legged_gym)**
 
-- **Integration of 2 simulators: Genesis and IsaacGym**
+  This framework keeps most apis and conventions consistent with legged_gym, providing good readability and better control over training pipeline.
+
+- **Integration of multiple simulators**
   
-  You can train policies in two simulators using one framework and two conda environments.
+  We support training in either of three simulators: IsaacGym, Genesis and IsaacSim.
+  
+  Quick tips for choosing among three simulators: 
+  
+  - Faster training but worse rendering -> IsaacGym
+  - Both training speed and support for fluid, soft materials -> Genesis 
+  - More realistic rendering at the cost of training speed -> IsaacSim.
 
 - **Incorporation of various methods in published RL papers**
   
@@ -45,6 +53,7 @@ Please refer to the [doc of this repo](https://genesis-lr-doc.readthedocs.io/en/
 - [rsl_rl](https://github.com/leggedrobotics/rsl_rl)
 - [unitree_rl_gym](https://github.com/unitreerobotics/unitree_rl_gym)
 - [tron1-rl-isaacgym](https://github.com/limxdynamics/tron1-rl-isaacgym)
+- [isaaclab](https://github.com/isaac-sim/IsaacLab/tree/8e15af9f2ca18a0c3940b44e36fdc128995ecf16)
 
 ## TODO
 
@@ -54,6 +63,8 @@ Please refer to the [doc of this repo](https://genesis-lr-doc.readthedocs.io/en/
 - [x] Add Constraints as Terminations implementation (2025/10/23)
 - [x] Add support for TRON1_PF (flat and rough)
 - [x] Add DreamWaQ implementation (2025/11/27)
-- [ ] Add support for TRON1_SF (flat and rough)
-- [ ] Add support for TRON1_WF (flat and rough)
+- [x] Add support for TRON1_SF (2026/02/13)
+- [x] Add support for IsaacSim simulator
+- [ ] Add support for TRON1_WF
 - [ ] Add support for warp-based depth camera
+- [ ] Add support for DeepMimic Implementation

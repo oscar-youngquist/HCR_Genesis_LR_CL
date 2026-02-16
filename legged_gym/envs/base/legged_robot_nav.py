@@ -232,13 +232,10 @@ class LeggedRobotNav(BaseTask):
                     1) - 0.5 - self.simulator.measured_heights, -1, 1.) * self.obs_scales.height_measurements
                 self.privileged_obs_buf = torch.cat((self.privileged_obs_buf, heights), dim=-1)
 
-    def set_camera(self, pos, lookat):
-        """ Set camera position and direction
+    def set_viewer_camera(self, pos, lookat):
+        """ Set viewer camera position and direction
         """
-        self.floating_camera.set_pose(
-            pos=pos,
-            lookat=lookat
-        )
+        self.simulator.set_viewer_camera(eye=pos, target=lookat)
 
     # ------------- Callbacks --------------
     
@@ -309,9 +306,9 @@ class LeggedRobotNav(BaseTask):
         self.commands[:, 3] = torch.clamp(self.commands[:, 3], min=0.)
 
         if self.cfg.terrain.measure_heights:
-            self.simulator.get_heights()
+            self.simulator.update_surrounding_heights()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % self.cfg.domain_rand.push_interval == 0):
-            self.simulator.push_robots()
+            self.simulator._push_robots()
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments

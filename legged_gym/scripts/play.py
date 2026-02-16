@@ -18,39 +18,52 @@ def override_configs(env_cfg, args):
     task_name = args.task
     # override some parameters for testing
     # number of environments
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 32)
     if "cts" in task_name:  # cts specific
         env_cfg.env.num_teacher = 1
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
-    if env_cfg.terrain.mesh_type == "plane":
-        for i in range(2):
-            env_cfg.viewer.pos[i] = env_cfg.viewer.pos[i] - env_cfg.terrain.plane_length / 4
-            env_cfg.viewer.lookat[i] = env_cfg.viewer.lookat[i] - env_cfg.terrain.plane_length / 4
-    elif env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
+    if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
         env_cfg.terrain.num_rows = 2
         env_cfg.terrain.num_cols = 2
+        env_cfg.terrain.border_size = 5.0
         env_cfg.terrain.curriculum = False
         env_cfg.terrain.selected = True
-        env_cfg.env.debug_draw_height_points = True
+        env_cfg.env.debug_draw_terrain_height_points = False
         
-        # stairs
-        env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-                                        "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
-        # single stair
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-        #                                   "step_width": 1.0, "step_height": -0.05, "platform_size": 3.0}
+        
+        # random uniform terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.random_uniform_terrain", 
+        #                                   "min_height" : -0.05, "max_height": 0.05, 
+        #                                   "step":0.005, "downsampled_scale" : 0.2}
         # slope
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
         #                                   "slope": -0.4, "platform_size": 3.0}
-        # # discrete obstacles
+        # stairs
+        env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
+                                        "step_width": 0.31, "step_height": -0.1, "platform_size": 3.0}
+        # discrete obstacles
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
         #                                   "max_height": 0.1,
         #                                   "min_size": 1.0,
         #                                   "max_size": 2.0,
         #                                   "num_rects": 20,
         #                                   "platform_size": 3.0}
-    
+        # wave terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.wave_terrain", 
+        #                                   "amplitude": 0.1, "num_waves": 2}
+        # stepping stones
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.stepping_stones_terrain",
+        #                                   "stone_size": 1.0, "max_height": 0.1,
+        #                                   "stone_distance": 0.3, "platform_size": 3.0}
+        # gap terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.gap_terrain", 
+        #                                   "gap_size": 0.2, "platform_size": 3.0}
+        # pit terrain
+        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pit_terrain", 
+        #                                   "depth": 0.2, "platform_size": 3.0}
+        
+        
     env_cfg.env.debug = True
     
     if args.use_joystick:
@@ -86,7 +99,7 @@ def interaction_loop(env, policy, args):
     """
     
     logger = Logger(env.dt)
-    robot_index = 0 # which robot is used for logging
+    robot_index = 1 # which robot is used for logging
     joint_index = 2 # which joint is used for logging
     stop_state_log = 300 # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
@@ -105,7 +118,12 @@ def interaction_loop(env, policy, args):
     # Setup joystick if needed
     if args.use_joystick:
         joystick = Joystick(joystick_type=args.joystick_type)
-
+    
+    # env.commands[:, 0] = 0.5
+    # env.commands[:, 1] = 0
+    # env.commands[:, 2] = 0
+    # env.commands[:, 3] = 0
+    
     # interaction loop
     for i in range(10*int(env.max_episode_length)):
         
@@ -115,6 +133,12 @@ def interaction_loop(env, policy, args):
             env.commands[:, 0] = -joystick.ly
             env.commands[:, 1] = -joystick.lx
             env.commands[:, 2] = -joystick.rx
+        
+        # set the viewer camera to follow the first environment by default
+        if args.follow_robot:
+            pos = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.pos, dtype=np.float32)
+            lookat = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.lookat, dtype=np.float32)
+            env.set_viewer_camera(pos, lookat)
         
         # Step the environment according to task type
         if "ts" in task_name or "cat" in task_name:

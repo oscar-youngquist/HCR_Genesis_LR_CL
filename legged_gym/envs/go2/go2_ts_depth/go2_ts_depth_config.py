@@ -18,7 +18,6 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
         num_actions = 12
         env_spacing = 0.5
-        use_warp = True               # whether to use warp for sensors(lidar, camera, etc.)
     
     class terrain( LeggedRobotCfg.terrain ):
         if SIMULATOR == "genesis":
@@ -27,7 +26,6 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
             mesh_type = "trimesh"  # for isaacgym
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
-        restitution = 0.
         border_size = 5.0 # [m]
         curriculum = True
         # rough terrain only:
@@ -94,8 +92,6 @@ class Go2TSDepthCfg( LeggedRobotCfg ):
             'RL_thigh_joint',
             'RL_calf_joint',]
         links_to_keep = ['FL_foot', 'FR_foot', 'RL_foot', 'RR_foot']
-        # IsaacGym:
-        flip_visual_attachments = False
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9

@@ -38,6 +38,12 @@ class GO2(LeggedRobot):
     
     # Override functions for deployment
     def compute_observations(self):
+        # print(f"project gravity: {self.simulator.projected_gravity}")
+        # print(f"base ang vel: {self.simulator.base_ang_vel}")
+        # print(f"dof pos: {self.simulator.dof_pos[0]}")
+        # print(f"default dof pos: {self.simulator.default_dof_pos}")
+        # print(f"dof vel: {self.simulator.dof_vel}")
+        # print(f"actions: {self.actions}")
         self.obs_buf = torch.cat((
                                 self.commands[:, :3] * self.commands_scale,                   # 3
                                 self.simulator.projected_gravity,                             # 3
@@ -109,3 +115,20 @@ class GO2(LeggedRobot):
         if self.cfg.terrain.measure_heights:
             noise_vec[48:235] = noise_scales.height_measurements * noise_level * self.obs_scales.height_measurements
         return noise_vec
+    
+    def _reset_root_states(self, env_ids):
+        # base pos
+        if self.simulator.custom_origins:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+            base_pos[:, :2] += torch_rand_float(-0.5, 0.5, (len(env_ids), 2), device=self.device) # xy position within 1m of the center
+        else:
+            base_pos = self.simulator.base_init_pos.reshape(1, -1).repeat(len(env_ids), 1)
+            base_pos += self.simulator.env_origins[env_ids]
+        # base quat
+        base_quat = self.simulator.base_init_quat.reshape(1, -1).repeat(len(env_ids), 1)
+        # base lin vel
+        base_lin_vel = torch_rand_float(-0.0, 0.0, (len(env_ids), 3), self.device)
+        # base ang vel
+        base_ang_vel = torch_rand_float(-0.0, 0.0, (len(env_ids), 3), self.device)
+        self.simulator.reset_root_states(env_ids, base_pos, base_quat, base_lin_vel, base_ang_vel)

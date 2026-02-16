@@ -1,3 +1,4 @@
 from .simulator import Simulator
-from .simulator import GenesisSimulator
-from .simulator import IsaacGymSimulator
+from .genesis_simulator import GenesisSimulator
+from .isaacgym_simulator import IsaacGymSimulator
+from .isaaclab_simulator import IsaacLabSimulator

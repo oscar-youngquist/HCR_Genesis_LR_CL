@@ -9,7 +9,6 @@ class GO2SysIDCfg( LeggedRobotCfg ):
     
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = "plane" # none, plane, heightfield
-        restitution = 0.
         
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.8] # x,y,z [m]
