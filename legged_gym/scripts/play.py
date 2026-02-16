@@ -18,17 +18,17 @@ def override_configs(env_cfg, args):
     task_name = args.task
     # override some parameters for testing
     # number of environments
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 32)
     if "cts" in task_name:  # cts specific
         env_cfg.env.num_teacher = 1
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
     if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
-        env_cfg.terrain.num_rows = 4
-        env_cfg.terrain.num_cols = 4
-        env_cfg.terrain.border_size = 1.0
-        env_cfg.terrain.curriculum = True
-        env_cfg.terrain.selected = False
+        env_cfg.terrain.num_rows = 2
+        env_cfg.terrain.num_cols = 2
+        env_cfg.terrain.border_size = 5.0
+        env_cfg.terrain.curriculum = False
+        env_cfg.terrain.selected = True
         env_cfg.env.debug_draw_terrain_height_points = False
         
         
@@ -40,8 +40,8 @@ def override_configs(env_cfg, args):
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
         #                                   "slope": -0.4, "platform_size": 3.0}
         # stairs
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-        #                                 "step_width": 0.31, "step_height": -0.15, "platform_size": 3.0}
+        env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
+                                        "step_width": 0.31, "step_height": -0.1, "platform_size": 3.0}
         # discrete obstacles
         # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
         #                                   "max_height": 0.1,
@@ -94,7 +94,7 @@ def interaction_loop(env, policy, args):
     """
     
     logger = Logger(env.dt)
-    robot_index = 0 # which robot is used for logging
+    robot_index = 1 # which robot is used for logging
     joint_index = 2 # which joint is used for logging
     stop_state_log = 300 # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
@@ -113,6 +113,11 @@ def interaction_loop(env, policy, args):
     # Setup joystick if needed
     if args.use_joystick:
         joystick = Joystick(joystick_type=args.joystick_type)
+    
+    # env.commands[:, 0] = 0.5
+    # env.commands[:, 1] = 0
+    # env.commands[:, 2] = 0
+    # env.commands[:, 3] = 0
     
     # interaction loop
     for i in range(10*int(env.max_episode_length)):

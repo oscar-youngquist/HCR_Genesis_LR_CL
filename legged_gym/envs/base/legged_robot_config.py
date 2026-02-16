@@ -2,50 +2,52 @@ from .base_config import BaseConfig
 
 class LeggedRobotCfg(BaseConfig):
     class env:
-        num_envs = 4096
-        num_observations = 48
-        num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
-        num_actions = 12
+        num_envs = 4096 # number of parallel environments
+        num_observations = 48 # size of the observation vector
+        num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for asymmetric training). 
+                                   # None is returned otherwise 
+        num_actions = 12 # size of the action vector
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
-        debug = False # if debugging, visualize contacts, etc.
-        debug_draw_height_points_around_base = False
-        debug_draw_height_points_around_feet = False
-        debug_draw_terrain_height_points = False
-        env_spacing = 1.0
+        env_spacing = 1.0 # spacing between envs in the scene, only for plane
         fail_to_terminal_time_s = 0.1 # time before a fail state leads to environment reset, refer to https://github.com/limxdynamics/tron1-rl-isaacgym/tree/master
-
+        debug = False # enable debug drawings in the simulator
+        debug_draw_height_points_around_base = False # obtain height measurements around the base
+        debug_draw_height_points_around_feet = False # obtain height measurements around the feet (9 points around each foot, see terrain.measured_points_x/y)
+        debug_draw_terrain_height_points = False # draw all height points of the terrain
+        
     class terrain:
         
-        # heightfield uses a grid of height samples to represent the terrain, creating enomous points
-        # trimesh creates terrain mesh directly
+        # heightfield uses a grid of height samples to represent the terrain, creating enormous points
+        # trimesh creates terrain mesh directly, reducing the number of triangles compared with heightfield
         mesh_type = 'plane' # plane, heightfield, trimesh
         plane_length = 200.0 # [m]. plane size is 200x200x10 by default
-        horizontal_scale = 0.1 # [m]
-        vertical_scale = 0.005 # [m]
-        border_size = 5 # [m]
-        border_height = 1.0 # [m]
-        curriculum = False
-        static_friction = 1.0
-        dynamic_friction = 1.0
-        restitution = 0.
+        horizontal_scale = 0.1 # [m] distance between height samples in x and y direction
+        vertical_scale = 0.005 # [m] distance between height samples in z direction
+        border_size = 5 # [m] length of the border surrounding the terrain
+        border_height = 1.0 # [m] height of the border surrounding the terrain
+        curriculum = False # whether to use terrain curriculum, starting from easier terrains and gradually increasing the difficulty
+        static_friction = 1.0 # coefficient of static friction of the terrain
+        dynamic_friction = 1.0 # coefficient of dynamic friction of the terrain
+        restitution = 0. # coefficient of restitution of the terrain
         # rough terrain only:
         # obtain terrain height information around feet (default: 9 points around feet), measure_
         # x  x   x
         # x F(x) x
         # x  x   x (x: height point, F: foot position)
         obtain_terrain_info_around_feet = False
-        measure_heights = False
+        measure_heights = False # obtain height measurements
+        # positions of the sampling height around the base (relative to the base of the robot)
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         selected = False # select a unique terrain type and pass all arguments
         terrain_kwargs = None # Dict of arguments for selected terrain
-        max_init_terrain_level = 1 # starting curriculum state
-        terrain_length = 6.0
-        terrain_width = 6.0
-        platform_size = 3.0
-        num_rows = 4  # number of terrain rows (levels)
-        num_cols = 4  # number of terrain cols (types)
+        max_init_terrain_level = 1 # starting curriculum level
+        terrain_length = 6.0 # [m] length of each subterrain, X direction
+        terrain_width = 6.0 # [m] width of each subterrain, Y direction
+        platform_size = 3.0 # [m] size of the flat platform at the center of each subterrain
+        num_rows = 4  # number of terrain rows (levels), X direction
+        num_cols = 4  # number of terrain cols (types), Y direction
         num_subterrains = num_rows * num_cols
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.1, 0.35, 0.25, 0.2]
@@ -84,16 +86,16 @@ class LeggedRobotCfg(BaseConfig):
         file = ""
         # name of the feet bodies, bodies containing this substring will be considered as feet
         foot_name = ""
-        penalize_contacts_on = []
-        terminate_after_contacts_on = []
+        penalize_contacts_on = [] # penalize contacts on links containing these substrings
+        terminate_after_contacts_on = [] # terminate episode after contacts on links containing these substrings
         fix_base_link = False    # fix base link to the world
-        obtain_link_contact_states = False
+        obtain_link_contact_states = False # whether to obtain contact states of specific links, the information can be used for privilege policy
         contact_state_link_names = ["thigh", "calf", "foot"]
         base_link_name = "" # full name of the base link
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         dof_names = ["joint_a", "joint_b"] # specify the sequence of dofs in the actions and observations
         # For Genesis
-        links_to_keep = []          # links that are not merged because of fixed joints
+        links_to_keep = []  # links that are not merged because of fixed joints
         dof_vel_limits = [] # rad/s, obtain from urdf
         # For IsaacGym and IsaacLab
         disable_gravity = False
@@ -153,25 +155,31 @@ class LeggedRobotCfg(BaseConfig):
             heading = [-3.14, 3.14]
     
     class domain_rand:
+        # randomize rigid body friction
         randomize_friction = True
         friction_range = [0.5, 1.25]
+        # randomize base link mass
         randomize_base_mass = True
         added_mass_range = [-1., 1.]
+        # apply random velocity perturbations to the base link
         push_robots = True
         push_interval_s = 15
         max_push_vel_xy = 1.
+        # randomize the position of Center of Mass (CoM) to simulate modeling errors
         randomize_com_displacement = True
         com_pos_x_range = [-0.01, 0.01]
         com_pos_y_range = [-0.01, 0.01]
         com_pos_z_range = [-0.01, 0.01]
+        # apply random delay to the actions to simulate latency in the control loop
         randomize_ctrl_delay = False
         ctrl_delay_step_range = [0, 1]
+        # randomize PD gains by a scale factor
         randomize_pd_gain = False
         kp_range = [0.8, 1.2]
         kd_range = [0.8, 1.2]
-        # Randomizing joint armature/friction/damping in Genesis require batching dofs/links info, 
-        # which will slow the simulation greatly.
-        # It is recommended to keep them false. If needed, please use it in IsaacGym only.
+        # ! Randomizing joint armature/friction/damping in Genesis require batching dofs/links info, 
+        # ! which will slow the simulation greatly.
+        # ! It is recommended to keep them false. If needed, please use it in IsaacGym and IsaacLab.
         randomize_joint_armature = False
         joint_armature_range = [0.0, 0.05]  # [N*m*s/rad]
         randomize_joint_friction = False
@@ -208,7 +216,7 @@ class LeggedRobotCfg(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = 0
-        pos = [5.0, 5.0, 1.0]       # [m], relative to the robot position
+        pos = [4.0, 4.0, 2.0]       # [m], relative to the robot position
         lookat = [0., 0, 0.]  # [m], relative to the robot position
         rendered_envs_idx = [i for i in range(5)]  # [Genesis] number of environments to be rendered, if not headless
     
