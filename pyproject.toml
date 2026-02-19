@@ -14,7 +14,8 @@ dependencies = [
                 'torchvision',
                 'numpy',
                 'pygame',
-                'trimesh'
+                'trimesh',
+                'warp-lang'
 ]
 
 [project.optional-dependencies]
