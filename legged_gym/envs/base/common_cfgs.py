@@ -127,3 +127,49 @@ class Go2RoughCommonCfg(Go2FlatCommonCfg):
             foot_clearance = 0.2
             hip_pos = -0.05
             feet_contact_stand_still = 0.5
+
+
+#----- Common configuration for Unitree G1 on flat terrain -----#
+class G1FlatCommonCfg(LeggedRobotCfg):
+    class terrain(LeggedRobotCfg.terrain):
+        mesh_type = "plane"
+
+    class init_state(LeggedRobotCfg.init_state):
+        pos = [0.0, 0.0, 0.8]  # x,y,z [m]
+        default_joint_angles = {
+            'left_hip_yaw_joint': 0.,
+            'left_hip_roll_joint': 0,
+            'left_hip_pitch_joint': -0.1,
+            'left_knee_joint': 0.3,
+            'left_ankle_pitch_joint': -0.2,
+            'left_ankle_roll_joint': 0,
+            'right_hip_yaw_joint': 0.,
+            'right_hip_roll_joint': 0,
+            'right_hip_pitch_joint': -0.1,
+            'right_knee_joint': 0.3,
+            'right_ankle_pitch_joint': -0.2,
+            'right_ankle_roll_joint': 0,
+        }
+
+    class control(LeggedRobotCfg.control):
+        control_type = 'P'
+        stiffness = {'hip_yaw': 100, 'hip_roll': 100, 'hip_pitch': 100, 'knee': 150, 'ankle': 40}
+        damping = {'hip_yaw': 2, 'hip_roll': 2, 'hip_pitch': 2, 'knee': 4, 'ankle': 2}
+        action_scale = 0.25
+        decimation = 4
+
+    class asset(LeggedRobotCfg.asset):
+        name = "g1"
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/g1_description/g1_12dof.urdf'
+        foot_name = "ankle_roll"
+        penalize_contacts_on = ["hip", "knee"]
+        terminate_after_contacts_on = ["pelvis"]
+        base_link_name = "pelvis"
+        self_collisions = 0
+        flip_visual_attachments = False
+        dof_names = [
+            "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+            "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
+            "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+            "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint"
+        ]

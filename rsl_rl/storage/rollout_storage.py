@@ -228,7 +228,7 @@ class RolloutStorage:
                                 for saved_hidden_states in self.saved_hidden_states_c ]
                 # remove the tuple for GRU
                 hid_a_batch = hid_a_batch[0] if len(hid_a_batch)==1 else hid_a_batch
-                hid_c_batch = hid_c_batch[0] if len(hid_c_batch)==1 else hid_a_batch
+                hid_c_batch = hid_c_batch[0] if len(hid_c_batch)==1 else hid_c_batch
 
                 yield obs_batch, critic_obs_batch, actions_batch, values_batch, advantages_batch, returns_batch, \
                        old_actions_log_prob_batch, old_mu_batch, old_sigma_batch, (hid_a_batch, hid_c_batch), masks_batch
