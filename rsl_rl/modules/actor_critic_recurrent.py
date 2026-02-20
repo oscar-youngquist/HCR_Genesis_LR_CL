@@ -70,6 +70,12 @@ class ActorCriticRecurrent(ActorCritic):
         print(f"Critic RNN: {self.memory_c}")
 
     def reset(self, dones=None):
+        if dones is None:
+            return
+        # Some envs provide dones/reset_buf as int/long 0/1; we need a boolean mask
+        # for correct hidden-state reset semantics.
+        if dones.dtype is not torch.bool:
+            dones = dones.bool()
         self.memory_a.reset(dones)
         self.memory_c.reset(dones)
 
@@ -111,6 +117,10 @@ class Memory(torch.nn.Module):
         return out
 
     def reset(self, dones=None):
-        # When the RNN is an LSTM, self.hidden_states_a is a list with hidden_state and cell_state
-        for hidden_state in self.hidden_states:
+        if dones is None or self.hidden_states is None:
+            return
+        # When the RNN is an LSTM, hidden_states is a tuple: (hidden_state, cell_state)
+        # When the RNN is a GRU, it is a single tensor.
+        states = self.hidden_states if isinstance(self.hidden_states, (tuple, list)) else (self.hidden_states,)
+        for hidden_state in states:
             hidden_state[..., dones, :] = 0.0

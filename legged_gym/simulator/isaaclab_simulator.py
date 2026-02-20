@@ -274,6 +274,9 @@ class IsaacLabSimulator(Simulator):
         if self._cfg.asset.name == "go2":
             from resources.robots.go2.go2_lab_cfg import GO2_ACTUATOR_CFG
             actuator_cfg = GO2_ACTUATOR_CFG
+        elif self._cfg.asset.name == "g1":
+            from resources.robots.g1_description.g1_lab_cfg import G1_ACTUATOR_CFG
+            actuator_cfg = G1_ACTUATOR_CFG
         else:
             raise NameError(f"Unknown robot name: {self._cfg.asset.name}")
         
