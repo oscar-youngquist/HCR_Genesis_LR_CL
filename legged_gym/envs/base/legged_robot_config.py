@@ -207,6 +207,16 @@ class LeggedRobotCfg(BaseConfig):
             ang_vel = 0.2
             gravity = 0.05
             height_measurements = 0.1
+            forward_depth = 0.0
+
+        class forward_depth:
+            # Parkour-style depth artifacts / noise (all optional)
+            contour_threshold = 0.0
+            contour_detection_kernel_size = 3
+            artifacts_prob = 0.0
+            stereo_far_distance = 0.0
+            stereo_far_noise_std = 0.0
+            stereo_near_noise_std = 0.0
     
     # constraints config for CaT (Constraints as Termination)
     class constraints:
@@ -237,6 +247,13 @@ class LeggedRobotCfg(BaseConfig):
             pos =   (0.3, 0.0, 0.1)
             euler = (0.0, 0.0, 0.0)
             decimation = 5
+            # Optional parkour-style processing
+            depth_range = (near_clip, far_clip)   # meters
+            crop_top_bottom = (0, 0)              # pixels
+            crop_left_right = (0, 0)              # pixels
+            output_resolution = (resolution[1], resolution[0])  # (H_out, W_out)
+            latency_range = (0.0, 0.0)            # seconds
+            refresh_duration = 0.0                # seconds; 0 => use dt
             # Warp only
             calculate_depth = True
             segmentation_camera = False

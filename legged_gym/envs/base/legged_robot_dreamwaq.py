@@ -4,7 +4,7 @@ from collections import deque
 class LeggedRobotDreamwaq(LeggedRobot):
     
     def compute_observations(self):
-        self.obs_buf = torch.cat((
+        obs_parts = [
             self.commands[:, :3] * self.commands_scale,                     # 3
             self.simulator.projected_gravity,                                         # 3
             self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
@@ -12,7 +12,10 @@ class LeggedRobotDreamwaq(LeggedRobot):
             self.obs_scales.dof_pos,  # num_dofs
             self.simulator.dof_vel * self.obs_scales.dof_vel,                         # num_dofs
             self.actions                                                    # num_actions
-        ), dim=-1)
+        ]
+        if self.cfg.sensor.add_depth:
+            obs_parts.append(self._get_forward_depth_obs())
+        self.obs_buf = torch.cat(obs_parts, dim=-1)
         
         # Estimator labels
         self.estimator_labels_buf = torch.cat((

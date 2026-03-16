@@ -445,6 +445,7 @@ class GenesisSimulator(Simulator):
         self._last_feet_vel = torch.zeros_like(self._feet_vel)
         # depth images
         if self._cfg.sensor.add_depth:
+            # NOTE: keep a stable tensor reference; downstream code may cache it.
             self.depth_images = torch.zeros(
                 (self._num_envs, 
                  self._cfg.sensor.depth_camera_config.num_history,
@@ -453,6 +454,10 @@ class GenesisSimulator(Simulator):
                 device=self._device, 
                 dtype=torch.float
             )
+            # Alias for a common simulator contract used by tasks.
+            self._depth_images = self.depth_images
+            # Optional raw (meters) buffer for camera algorithms that expect metric depth.
+            self._depth_images_meters = torch.zeros_like(self.depth_images)
         
         # Terrain information around feet
         if self._cfg.terrain.obtain_terrain_info_around_feet:
@@ -741,13 +746,14 @@ class GenesisSimulator(Simulator):
     def _update_depth_images(self):
         """ Renders the depth camera and retrieves the depth images
         """
-        self.depth_images[:] = self.depth_camera.read_image()[:]
+        # Genesis returns metric depth in [near_plane, far_plane] (in meters).
+        self._depth_images_meters[:] = self.depth_camera.read_image()[:]
         near_clip = self._cfg.sensor.depth_camera_config.near_clip
         far_clip = self._cfg.sensor.depth_camera_config.far_clip
         # clip the depth images to be within near and far clip
-        self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
-        # normalize the depth images to be within 0-1
-        self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip) - 0.5
+        torch.clamp(self._depth_images_meters, near_clip, far_clip, out=self._depth_images_meters)
+        # normalize to [-0.5, 0.5] to match existing behavior
+        self.depth_images[:] = (self._depth_images_meters - near_clip) / (far_clip - near_clip) - 0.5
     
     def _draw_debug_depth_images(self):
         if self._num_envs == 1:

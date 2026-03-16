@@ -6,11 +6,13 @@ import os
 import torch
 from torch import Tensor
 from typing import Tuple, Dict
+from collections import defaultdict
 
 from legged_gym.envs.base.base_task import BaseTask
 from legged_gym.utils.math_utils import wrap_to_pi, torch_rand_float, quat_apply
 from legged_gym.utils.terrain import Terrain
 from legged_gym.utils.helpers import class_to_dict
+from legged_gym.utils.depth_camera_adapter import DepthCameraAdapter
 from .legged_robot_config import LeggedRobotCfg
 
 class LeggedRobot(BaseTask):
@@ -69,7 +71,8 @@ class LeggedRobot(BaseTask):
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
         if self.cfg.sensor.add_depth:
-            self.simulator.update_depth_images()
+            # Keep simulator API consistent across backends.
+            self.simulator.update_sensors()
         self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
         
         if self.debug:
@@ -230,6 +233,8 @@ class LeggedRobot(BaseTask):
     def _pre_sim_step(self, actions):
         """ Callback called at the beginning of the step function, before stepping the simulation
         """
+        if hasattr(self, "set_buffers_refreshed_to_false"):
+            self.set_buffers_refreshed_to_false()
         clip_actions = self.cfg.normalization.clip_actions
         actions = torch.clip(
             actions, -clip_actions, clip_actions).to(self.device)
@@ -401,12 +406,32 @@ class LeggedRobot(BaseTask):
             (self.num_envs, len(self.simulator.feet_indices)), device=self.device, dtype=torch.float)
         self.last_contacts = torch.zeros((self.num_envs, len(self.simulator.feet_indices)), device=self.device, dtype=torch.int)
 
+        # --- Sensor buffers (e.g. depth camera) ---
+        self.sensor_tensor_dict = defaultdict(list)
+        if self.cfg.sensor.add_depth:
+            self._init_sensor_buffers()
+
         # randomize action delay
         if self.cfg.domain_rand.randomize_ctrl_delay:
             self.action_queue = torch.zeros(
                 self.num_envs, self.cfg.domain_rand.ctrl_delay_step_range[1]+1, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
             self.action_delay = torch.randint(self.cfg.domain_rand.ctrl_delay_step_range[0],
                                               self.cfg.domain_rand.ctrl_delay_step_range[1]+1, (self.num_envs,), device=self.device, requires_grad=False)
+
+    def _init_sensor_buffers(self):
+        """Initialize references to simulator sensor tensors.
+
+        Mirrors parkour's `sensor_tensor_dict["forward_depth"]` contract: a list of per-env (H, W)
+        tensors on GPU.
+        """
+        depth_meters_latest = DepthCameraAdapter.get_depth_meters_latest(self.cfg, self.simulator)
+        self.sensor_tensor_dict["forward_depth"] = [depth_meters_latest[i] for i in range(self.num_envs)]
+
+    def _get_forward_depth_obs(self) -> Tensor:
+        """Returns flattened forward depth observation: (num_envs, H*W)."""
+        if not self.cfg.sensor.add_depth:
+            raise RuntimeError("forward_depth requested but cfg.sensor.add_depth=False")
+        return torch.stack(self.sensor_tensor_dict["forward_depth"]).flatten(start_dim=1)
 
     def _prepare_reward_function(self):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.

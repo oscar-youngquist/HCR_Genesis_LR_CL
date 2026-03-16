@@ -1,11 +1,12 @@
 import torch
 
 from legged_gym.envs.base.legged_robot_dreamwaq import LeggedRobotDreamwaq
+from legged_gym.envs.base.forward_depth_noisy_mixin import ForwardDepthNoisyMixin
 from legged_gym.utils.math_utils import wrap_to_pi, quat_apply, torch_rand_float
 
-class Go2Dreamwaq(LeggedRobotDreamwaq):
+class Go2Dreamwaq(ForwardDepthNoisyMixin, LeggedRobotDreamwaq):
     def compute_observations(self):
-        self.obs_buf = torch.cat((
+        obs_parts = [
             self.commands[:, :3] * self.commands_scale,                     # 3
             self.simulator.projected_gravity,                                         # 3
             self.simulator.base_ang_vel * self.obs_scales.ang_vel,                   # 3
@@ -13,7 +14,10 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
             self.obs_scales.dof_pos,  # num_dofs
             self.simulator.dof_vel * self.obs_scales.dof_vel,                         # num_dofs
             self.actions                                                    # num_actions
-        ), dim=-1)
+        ]
+        if self.cfg.sensor.add_depth:
+            obs_parts.append(self._get_forward_depth_obs())
+        self.obs_buf = torch.cat(obs_parts, dim=-1)
         
         domain_randomization_info = torch.cat((
                     (self.simulator._friction_values - 
@@ -132,6 +136,13 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
         noise_vec[21:33] = noise_scales.dof_vel * \
             noise_level * self.obs_scales.dof_vel
         noise_vec[33:45] = 0.  # previous actions
+        if self.cfg.sensor.add_depth:
+            depth_len = self.obs_buf.shape[1] - 45
+            if depth_len > 0:
+                start = 45
+                end = 45 + depth_len
+                forward_depth_scale = getattr(noise_scales, "forward_depth", 0.0)
+                noise_vec[start:end] = forward_depth_scale * noise_level
         return noise_vec
     
     def _reward_feet_air_time(self):
@@ -161,6 +172,58 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
             ), dim=-1
         )
         return torch.exp(-clearance_error / self.cfg.rewards.foot_clearance_tracking_sigma)
+    
+    def _reward_foot_clearance_terrain_aware(self):
+        """
+        Encourage swing feet to reach a terrain-aware desired height,
+        while softly discouraging excessive swing height.
+
+        Assumes:
+            self.simulator.feet_pos           : (N, 4, 3)
+            self.simulator.feet_vel           : (N, 4, 3)
+            self.simulator._height_around_feet: (N, 4, 3, 3) or (N, 4, 9)
+
+        Uses:
+            - terrain-aware target height
+            - horizontal foot velocity weighting (same style as original reward)
+            - excess-height penalty to prevent over-swinging
+        """
+
+        feet_z = self.simulator.feet_pos[:, :, 2]                       # (N,4)
+        foot_vel_xy_norm = torch.norm(self.simulator.feet_vel[:, :, :2], dim=-1)  # (N,4)
+
+        # Flatten 3x3 terrain patch if needed, then take local max height near each foot
+        h_patch = self.simulator._height_around_feet
+        if h_patch.ndim == 4:   # (N,4,3,3)
+            h_patch = h_patch.view(h_patch.shape[0], h_patch.shape[1], -1)  # (N,4,9)
+
+        local_terrain_h = torch.max(h_patch, dim=-1)[0]                # (N,4)
+
+        # Terrain-aware desired foot height
+        z_des = (
+            self.cfg.rewards.foot_clearance_target
+            + self.cfg.rewards.foot_height_offset
+            + local_terrain_h
+        )                                                               # (N,4)
+
+        # Main tracking error: encourage feet to reach desired terrain-aware height
+        track_err = torch.square(feet_z - z_des)                        # (N,4)
+
+        # Soft over-swing penalty: only penalize when foot goes too far above desired height
+        # Margin gives some freedom to overshoot a little during learning
+        excess_margin = 0.04  # [m], tune: 0.03 - 0.06
+        excess = torch.relu(feet_z - (z_des + excess_margin))           # (N,4)
+        excess_err = torch.square(excess)
+
+        # Weight excess penalty less than main tracking term
+        excess_weight = 0.25  # tune: 0.1 - 0.5
+
+        total_err = torch.sum(
+            foot_vel_xy_norm * (track_err + excess_weight * excess_err),
+            dim=-1
+        )                                                               # (N,)
+
+        return torch.exp(-total_err / self.cfg.rewards.foot_clearance_tracking_sigma)
     
     def _reward_hip_pos(self):
         """ Reward for the hip joint position close to default position

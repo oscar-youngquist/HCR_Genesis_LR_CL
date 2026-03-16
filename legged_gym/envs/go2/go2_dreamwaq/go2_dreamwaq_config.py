@@ -4,10 +4,12 @@ from legged_gym.envs.base.common_cfgs import Go2RoughCommonCfg
 
 class Go2DreamwaqCfg( LeggedRobotDreamwaqCfg ):
     class env( LeggedRobotDreamwaqCfg.env ):
-        num_envs = 3000
+        num_envs = 4096
         num_actions = 12
-        num_observations = 45  # num_obs
-        frame_stack = 20    # number of frames to stack for obs_history
+        _depth_res = LeggedRobotDreamwaqCfg.sensor.depth_camera_config.resolution
+        _depth_obs_len = int(_depth_res[0] * _depth_res[1])
+        num_observations = 45 + _depth_obs_len  # proprio + flattened depth
+        frame_stack = 10  # number of frames to stack for obs_history test=[10, 20]
         num_history_obs = int(num_observations * frame_stack)
         num_latent_dims = 16
         num_explicit_dims = 24  # base linear velocity
@@ -31,6 +33,10 @@ class Go2DreamwaqCfg( LeggedRobotDreamwaqCfg ):
     class rewards( Go2RoughCommonCfg.rewards ):
         class scales( Go2RoughCommonCfg.rewards.scales ):
             pass
+
+    class sensor( LeggedRobotDreamwaqCfg.sensor ):
+        add_depth = True
+        use_warp = False
 
     class commands( LeggedRobotDreamwaqCfg.commands ):
         curriculum = True
@@ -84,5 +90,6 @@ class Go2DreamwaqCfgPPO( LeggedRobotDreamwaqCfgPPO ):
         elif SIMULATOR == "isaaclab":
             run_name += "_isaaclab"
         experiment_name = 'go2_rough'
-        save_interval = 500
+        save_interval = 250
         max_iterations = 3000
+        

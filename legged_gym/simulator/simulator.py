@@ -102,6 +102,16 @@ class Simulator(ABC):
         """
         return
 
+    def get_depth_images(self) -> Tensor | None:
+        """Returns the latest depth images if the simulator provides them.
+
+        Convention:
+        - Shape is typically (num_envs, num_history, H, W) for depth-only,
+          or (num_envs, num_history, H, W, 3) for pointcloud.
+        - Values may be in meters or normalized depending on backend/config.
+        """
+        return getattr(self, "_depth_images", None) or getattr(self, "depth_images", None)
+
     #----- Protected methods -----#
     @abstractmethod
     def _parse_cfg(self):
