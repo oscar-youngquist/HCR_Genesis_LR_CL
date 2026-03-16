@@ -48,6 +48,9 @@ from legged_gym.envs.go2.go2_cts.go2_cts_config import Go2CTSCfg, Go2CTSCfgPPO
 # go2_dreamwaq
 from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq import Go2Dreamwaq
 from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq_config import Go2DreamwaqCfg, Go2DreamwaqCfgPPO
+# go2_parkour
+from legged_gym.envs.go2.go2_parkour.go2_parkour import Go2Parkour
+from legged_gym.envs.go2.go2_parkour.go2_parkour_config import Go2ParkourCfg, Go2ParkourCfgPPO
 # go2_cat(constraint-as-termination)
 from legged_gym.envs.go2.go2_cat.go2_cat import Go2CaT
 from legged_gym.envs.go2.go2_cat.go2_cat_config import Go2CaTCfg, Go2CaTCfgPPO
@@ -83,6 +86,7 @@ task_registry.register( "go2_ts", Go2TS, Go2TSCfg(), Go2TSCfgPPO())
 task_registry.register( "go2_ee", Go2EE, Go2EECfg(), Go2EECfgPPO())
 task_registry.register( "go2_cts", Go2CTS, Go2CTSCfg(), Go2CTSCfgPPO())
 task_registry.register( "go2_dreamwaq", Go2Dreamwaq, Go2DreamwaqCfg(), Go2DreamwaqCfgPPO())
+task_registry.register( "go2_parkour", Go2Parkour, Go2ParkourCfg(), Go2ParkourCfgPPO())
 task_registry.register( "go2_cat", Go2CaT, Go2CaTCfg(), Go2CaTCfgPPO())
 # task_registry.register( "go2_ts_depth", Go2TSDepth, Go2TSDepthCfg(), Go2TSDepthCfgPPO())
 task_registry.register( "go2_nav", GO2Nav, GO2NavCfg(), GO2NavCfgPPO())
