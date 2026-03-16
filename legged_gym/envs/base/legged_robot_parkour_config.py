@@ -1,6 +1,6 @@
 from .legged_robot_config import *
 
-class LeggedRobotDreamwaqCfg(LeggedRobotCfg):
+class LeggedRobotParkourCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
         num_observations = 45  # num_obs
         frame_stack = 20    # number of frames to stack for obs_history
@@ -12,8 +12,8 @@ class LeggedRobotDreamwaqCfg(LeggedRobotCfg):
         single_critic_obs_len = num_observations + 31 + 81 + 17 + 3
         num_privileged_obs = c_frame_stack * single_critic_obs_len
 
-class LeggedRobotDreamwaqCfgPPO(LeggedRobotCfgPPO):
-    runner_class_name = "DreamWaQRunner" # DreamWaQ Runner
+class LeggedRobotParkourCfgPPO(LeggedRobotCfgPPO):
+    runner_class_name = "ParkourRunner" # Parkour Runner
     class policy( LeggedRobotCfgPPO.policy ):
         encoder_hidden_dims = [256, 128]
         decoder_hidden_dims = [256, 128]
@@ -24,5 +24,5 @@ class LeggedRobotDreamwaqCfgPPO(LeggedRobotCfgPPO):
         vae_kld_weight = 2.0
 
     class runner( LeggedRobotCfgPPO.runner ):
-        policy_class_name = "ActorCriticDreamWaQ"
-        algorithm_class_name = "PPO_DreamWaQ"
+        policy_class_name = "ActorCriticParkour"
+        algorithm_class_name = "PPO_Parkour"
