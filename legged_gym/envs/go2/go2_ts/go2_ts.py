@@ -28,7 +28,7 @@ class Go2TS(LeggedRobotTS):
         # Critic observation
         critic_obs = torch.cat((
             self.obs_buf,                 # num_observations
-            domain_randomization_info,    # 34
+            domain_randomization_info,    # 31
             self.simulator.base_lin_vel * self.obs_scales.lin_vel,     # 3
         ), dim=-1)
         if self.cfg.asset.obtain_link_contact_states:
