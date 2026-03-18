@@ -295,8 +295,8 @@ class K1FlatCommonCfg(LeggedRobotCfg):
         name = "k1"
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/booster_robotics/K1/K1_22dof.urdf'
         foot_name = "foot"
-        penalize_contacts_on = ["Shank", "Hip", "Arm", "hand", "Head"]
-        terminate_after_contacts_on = ["Trunk"]
+        penalize_contacts_on = ["Trunk", "Shank", "Hip", "Arm", "Head"]
+        terminate_after_contacts_on = []
         base_link_name = "Trunk"
         self_collisions = 0
         flip_visual_attachments = False
