@@ -48,14 +48,22 @@ from legged_gym.envs.go2.go2_cts.go2_cts_config import Go2CTSCfg, Go2CTSCfgPPO
 # go2_dreamwaq
 from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq import Go2Dreamwaq
 from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq_config import Go2DreamwaqCfg, Go2DreamwaqCfgPPO
+
+from legged_gym.envs.go2.go2_dreamwaq_env.go2_dreamwaq_env import Go2Dreamwaq as Go2DreamwaqEnv
+from legged_gym.envs.go2.go2_dreamwaq_env.go2_dreamwaq_env_config import Go2DreamwaqCfg as Go2DreamwaqEnvCfg, Go2DreamwaqCfgPPO as Go2DreamwaqEnvCfgPPO
+
+
 #made a syslink so the task manager doesnt get confused
 from legged_gym.envs.go2.go2_dreamwaq_flat.go2_dreamwaq_flat import Go2Dreamwaq as Go2DreamwaqFlat
 from legged_gym.envs.go2.go2_dreamwaq_flat.go2_dreamwaq_flat_config import Go2DreamwaqFlatCfg, Go2DreamwaqFlatCfgPPO
 
-from legged_gym.envs.go2.go2_dreamwaq_lora.go2_dreamwaq_lora import Go2DreamwaqLora
+from legged_gym.envs.go2.go2_dreamwaq_fft.go2_dreamwaq_fft import Go2Dreamwaq as Go2DreamwaqFtt
+from legged_gym.envs.go2.go2_dreamwaq_fft.go2_dreamwaq_fft_config import Go2DreamwaqFftCfg, Go2DreamwaqFftCfgPPO
+
+from legged_gym.envs.go2.go2_dreamwaq_lora.go2_dreamwaq_lora import Go2Dreamwaq as Go2DreamwaqLora
 from legged_gym.envs.go2.go2_dreamwaq_lora.go2_dreamwaq_lora_config import Go2DreamwaqLoraCfg, Go2DreamwaqLoraCfgPPO
 
-from legged_gym.envs.go2.go2_dreamwaq_lora_env.go2_dreamwaq_lora_env import Go2DreamwaqLora as Go2DreamwaqLoraEnv
+from legged_gym.envs.go2.go2_dreamwaq_lora_env.go2_dreamwaq_lora_env import Go2Dreamwaq as Go2DreamwaqLoraEnv
 from legged_gym.envs.go2.go2_dreamwaq_lora_env.go2_dreamwaq_lora_env_config import Go2DreamwaqLoraCfg as Go2DreamwaqLoraEnvCfg, Go2DreamwaqLoraCfgPPO as Go2DreamwaqLoraEnvCfgPPO
 
 # go2_cat(constraint-as-termination)
@@ -93,6 +101,8 @@ task_registry.register( "go2_ts", Go2TS, Go2TSCfg(), Go2TSCfgPPO())
 task_registry.register( "go2_ee", Go2EE, Go2EECfg(), Go2EECfgPPO())
 task_registry.register( "go2_cts", Go2CTS, Go2CTSCfg(), Go2CTSCfgPPO())
 task_registry.register( "go2_dreamwaq", Go2Dreamwaq, Go2DreamwaqCfg(), Go2DreamwaqCfgPPO())
+task_registry.register( "go2_dreamwaq_env", Go2DreamwaqEnv, Go2DreamwaqEnvCfg(), Go2DreamwaqEnvCfgPPO())
+task_registry.register( "go2_dreamwaq_fft", Go2DreamwaqFtt, Go2DreamwaqFftCfg(), Go2DreamwaqFftCfgPPO())
 task_registry.register( "go2_dreamwaq_flat", Go2DreamwaqFlat, Go2DreamwaqFlatCfg(), Go2DreamwaqFlatCfgPPO())
 task_registry.register( "go2_dreamwaq_lora", Go2DreamwaqLora, Go2DreamwaqLoraCfg(), Go2DreamwaqLoraCfgPPO())
 task_registry.register( "go2_dreamwaq_lora_env", Go2DreamwaqLoraEnv, Go2DreamwaqLoraEnvCfg(), Go2DreamwaqLoraEnvCfgPPO())

@@ -3,6 +3,39 @@ from legged_gym.envs.base.legged_robot_dreamwaq_config import LeggedRobotDreamwa
 from legged_gym.envs.go2.go2_dreamwaq.go2_dreamwaq import Go2Dreamwaq
 from legged_gym.envs.base.common_cfgs import Go2RoughCommonCfg
 
+
+import os
+
+import os
+
+TERRAIN_KEYS = [
+    "rough",
+    "slope",
+    "stairs",
+    "discrete",
+    "wave",
+    "stepping_stones",
+]
+
+TERRAIN_MAP = {
+    name: [1 if i == idx else 0 for i in range(len(TERRAIN_KEYS))]
+    for idx, name in enumerate(TERRAIN_KEYS)
+}
+
+
+lora_rank = int(os.environ.get("LORA_RANK", 8))
+terrain_name = os.environ.get("TERRAIN", "rough").lower()
+finetune = os.environ.get("FINETUNE", "")
+
+
+if terrain_name not in TERRAIN_MAP:
+    raise ValueError(f"Unknown TERRAIN '{terrain_name}'. Valid options: {TERRAIN_KEYS}")
+
+terrain_index = TERRAIN_KEYS.index(terrain_name)
+terrain_list = TERRAIN_MAP[terrain_name]
+
+experiment_extra = f"exp{terrain_index+6}"
+
 class Go2DreamwaqLoraCfg( LeggedRobotDreamwaqCfg ):
     class env( LeggedRobotDreamwaqCfg.env ):
         num_envs = 3000
@@ -16,14 +49,14 @@ class Go2DreamwaqLoraCfg( LeggedRobotDreamwaqCfg ):
         c_frame_stack = 5
         single_critic_obs_len = num_observations + 31 + 81 + 17 + 3
         num_privileged_obs = c_frame_stack * single_critic_obs_len
-        # Privileged_obs and critic_obs are seperated here
+        # Privileged_obs and critic_obs are separated here
         # privileged_obs contains information given to privileged encoder
         # critic_obs contains information given to critic, including some privileged information
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
     
     class terrain( Go2RoughCommonCfg.terrain ):
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete,  stepping stones, gap, pit]
-        terrain_proportions = [0, 0, 0.35, 0.25, 0, 0, 0]
+        terrain_proportions = terrain_list
         pass
     class init_state( Go2RoughCommonCfg.init_state ):
         pass
@@ -69,14 +102,10 @@ class Go2DreamwaqLoraCfg( LeggedRobotDreamwaqCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
 
-import os
-
-lora_rank = int(os.environ.get("LORA_RANK", 2))
-
 class Go2DreamwaqLoraCfgPPO( LeggedRobotDreamwaqCfgPPO ):
     runner_class_name = "DreamWaQLoRaRunner" 
     class policy( LeggedRobotDreamwaqCfgPPO.policy ):
-        base_model="/home/pablo/Documents/HCR_Genesis_LR_CL/logs/go2_flat/Apr02_01-57-54_dreamwaq_flat_genesis/model_3000.pt"
+        base_model="/home/pablo/Documents/HCR_Genesis_LR_CL/logs/go2_flat/Apr15_20-07-19_dreamwaq_flat_genesis/model_3000.pt"
         critic_hidden_dims: list[int] = [1024, 256, 128]
         encoder_hidden_dims: list[int] = [256, 128]
         decoder_hidden_dims: list[int] = [256, 128]
@@ -100,6 +129,6 @@ class Go2DreamwaqLoraCfgPPO( LeggedRobotDreamwaqCfgPPO ):
             run_name += "_isaacgym"
         elif SIMULATOR == "isaaclab":
             run_name += "_isaaclab"
-        experiment_name = f'go2_lora_rank_{lora_rank}'
+        experiment_name = f'go2_lora_{experiment_extra}'
         save_interval = 500
         max_iterations = 3000

@@ -1,37 +1,54 @@
 from legged_gym import *
-
 from legged_gym.envs.base.legged_robot_dreamwaq_config import LeggedRobotDreamwaqCfg, LeggedRobotDreamwaqCfgPPO
-from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
-from legged_gym.envs.base.common_cfgs import Go2FlatCommonCfg, Go2RoughCommonCfg
+from legged_gym.envs.base.common_cfgs import Go2RoughCommonCfg
 
-class Go2DreamwaqFlatCfg( LeggedRobotDreamwaqCfg ):
+
+import os
+
+TERRAIN_KEYS = [
+    "rough",
+    "slope",
+    "stairs",
+    "discrete",
+    "wave",
+    "stepping_stones",
+]
+
+TERRAIN_MAP = {
+    name: [1 if i == idx else 0 for i in range(len(TERRAIN_KEYS))]
+    for idx, name in enumerate(TERRAIN_KEYS)
+}
+
+terrain_name = os.environ.get("TERRAIN", "rough").lower()
+finetune = os.environ.get("FINETUNE", "")
+
+
+if terrain_name not in TERRAIN_MAP:
+    raise ValueError(f"Unknown TERRAIN '{terrain_name}'. Valid options: {TERRAIN_KEYS}")
+
+terrain_index = TERRAIN_KEYS.index(terrain_name)
+terrain_list = TERRAIN_MAP[terrain_name]
+
+experiment_extra = f"exp{terrain_index+1}"
+
+class Go2DreamwaqFftCfg( LeggedRobotDreamwaqCfg ):
     class env( LeggedRobotDreamwaqCfg.env ):
         num_envs = 3000
         num_actions = 12
         num_observations = 45  # num_obs
         frame_stack = 20    # number of frames to stack for obs_history
         num_history_obs = int(num_observations * frame_stack)
-        num_latent_dims = 16
-        num_explicit_dims = 24  # base linear velocity
-        num_decoder_output = num_observations
-        c_frame_stack = 5
-        single_critic_obs_len = num_observations + 31 + 81 + 17 + 3
-        num_privileged_obs = c_frame_stack * single_critic_obs_len
         # Privileged_obs and critic_obs are separated here
         # privileged_obs contains information given to privileged encoder
         # critic_obs contains information given to critic, including some privileged information
         # This operation is to prevent the critic from receiving noisy input from the concatenation of current observation(noisy) and latent vector
     
-    class terrain( Go2FlatCommonCfg.terrain ):
-        mesh_type = "plane"
-        obtain_terrain_info_around_feet = True
-        measure_heights = True
-        measured_points_x = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4] # 9x9=81
-        measured_points_y = [-0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4]
-
-    class init_state( Go2FlatCommonCfg.init_state ):
+    class terrain( Go2RoughCommonCfg.terrain ):
+        terrain_proportions = terrain_list
         pass
-    class control( Go2FlatCommonCfg.control ):
+    class init_state( Go2RoughCommonCfg.init_state ):
+        pass
+    class control( Go2RoughCommonCfg.control ):
         pass
     class asset( Go2RoughCommonCfg.asset ):
         pass
@@ -73,7 +90,7 @@ class Go2DreamwaqFlatCfg( LeggedRobotDreamwaqCfg ):
         randomize_joint_damping = False
         joint_damping_range = [0.25, 0.3]
 
-class Go2DreamwaqFlatCfgPPO( LeggedRobotDreamwaqCfgPPO ):
+class Go2DreamwaqFftCfgPPO( LeggedRobotDreamwaqCfgPPO ):
     class policy( LeggedRobotDreamwaqCfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
         encoder_hidden_dims = [256, 128]
@@ -83,13 +100,14 @@ class Go2DreamwaqFlatCfgPPO( LeggedRobotDreamwaqCfgPPO ):
         num_encoder_epochs = 1
         vae_kld_weight = 2.0
     class runner( LeggedRobotDreamwaqCfgPPO.runner ):
-        run_name = 'dreamwaq_flat'
+        run_name = 'dreamwaq'
         if SIMULATOR == "genesis":
             run_name += "_genesis"
         elif SIMULATOR == "isaacgym":
             run_name += "_isaacgym"
         elif SIMULATOR == "isaaclab":
             run_name += "_isaaclab"
-        experiment_name = 'go2_flat'
+        experiment_name = f'go2_fft_{experiment_extra}'
+        base_model = finetune if finetune else None
         save_interval = 500
         max_iterations = 3000

@@ -92,7 +92,7 @@ class Simulator(ABC):
         """
         return
     
-    @abstractmethod
+    #@abstractmethod
     def set_viewer_camera(self, eye: np.ndarray, target: np.ndarray):
         """Sets the viewer camera in the simulator.
 

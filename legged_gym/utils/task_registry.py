@@ -33,11 +33,11 @@ class TaskRegistry():
         return env_cfg, train_cfg
     
     def make_env(self, name, args=None, env_cfg=None):
-        """ Creates an environment either from a registered namme or from the provided config file.
+        """ Creates an environment either from a registered name or from the provided config file.
 
         Args:
             name (string): Name of a registered env.
-            args (Args, optional): Isaac Gym comand line arguments. If None get_args() will be called. Defaults to None.
+            args (Args, optional): Isaac Gym command line arguments. If None get_args() will be called. Defaults to None.
             env_cfg (Dict, optional): Environment config file used to override the registered config. Defaults to None.
 
         Raises:
@@ -65,6 +65,7 @@ class TaskRegistry():
         sim_device = "cpu" if args.cpu else "cuda:0"
         # sim_params
         sim_params = class_to_dict(env_cfg.sim)
+        #print("Problem?", args.headless)
         env = task_class(   cfg=env_cfg,
                             sim_params=sim_params,
                             sim_device=sim_device,
@@ -72,12 +73,12 @@ class TaskRegistry():
         return env, env_cfg
 
     def make_alg_runner(self, env, name=None, args=None, train_cfg=None, log_root="default"):
-        """ Creates the training algorithm  either from a registered namme or from the provided config file.
+        """ Creates the training algorithm  either from a registered name or from the provided config file.
 
         Args:
             env (isaacgym.VecTaskPython): The environment to train (TODO: remove from within the algorithm)
             name (string, optional): Name of a registered env. If None, the config file will be used instead. Defaults to None.
-            args (Args, optional): Isaac Gym comand line arguments. If None get_args() will be called. Defaults to None.
+            args (Args, optional): Isaac Gym command line arguments. If None get_args() will be called. Defaults to None.
             train_cfg (Dict, optional): Training config file. If None 'name' will be used to get the config file. Defaults to None.
             log_root (str, optional): Logging directory for Tensorboard. Set to 'None' to avoid logging (at test time for example). 
                                       Logs will be saved in <log_root>/<date_time>_<run_name>. Defaults to "default"=<path_to_LEGGED_GYM>/logs/<experiment_name>.
@@ -131,6 +132,14 @@ class TaskRegistry():
                 resume_path = get_load_path(log_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
                 print(f"Loading model from: {resume_path}")
                 runner.load(resume_path)
+        elif hasattr(train_cfg.runner, "base_model") and train_cfg.runner.base_model:
+            finetuing_path = os.path.normpath(
+                os.path.abspath(
+                    os.path.expanduser(train_cfg.runner.base_model)
+                )
+            )
+            print(f"Loading base model from: {finetuing_path}")
+            runner.load(finetuing_path)
         return runner, train_cfg
 
 # make global task registry

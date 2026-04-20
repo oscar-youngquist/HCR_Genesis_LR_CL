@@ -244,7 +244,8 @@ class LeggedRobot(BaseTask):
             actions = self.action_queue[torch.arange(
                 self.num_envs), self.action_delay].clone()
         # during training, the camera follows the first environment
-        if not self.debug and not self.headless:
+        if (not self.debug) and self.headless:
+            print(f"here is the issue {self.debug} {self.headless}")
             pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
             lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
             self.set_viewer_camera(pos, lookat)

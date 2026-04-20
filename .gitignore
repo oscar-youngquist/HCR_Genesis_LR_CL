@@ -50,8 +50,13 @@ Thumbs.db
 # VS Code
 .vscode
 # logs
+archive
+exp_logs
 logs
 runs
+
+#specific
+plot.png
 
 # other
 *.egg-info
@@ -60,3 +65,4 @@ wandb
 build
 *debug*
 resources/terrains/*.stl
+*.zip

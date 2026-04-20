@@ -81,7 +81,7 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
         # explicit info labels
         self.explicit_labels_buf = torch.cat((
             self.simulator.base_lin_vel * self.obs_scales.lin_vel * 0.5,  # 3
-            self.simulator.link_contact_states, # contact states of hips, thighs, calfs, feet and base (4+4+4+4+1)=17
+            self.simulator.link_contact_states, # contact states of hips, thighs, calves, feet and base (4+4+4+4+1)=17
             torch.clip(self.simulator.feet_pos[:, :, 2] -
                 torch.mean(self.simulator.height_around_feet, dim=-1) -
                 self.cfg.rewards.foot_height_offset, -1, 1.),  # 4
@@ -93,7 +93,7 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
         Velocities are set to zero.
 
         Args:
-            env_ids (List[int]): Environemnt ids
+            env_ids (List[int]): Environment ids
         """
         
         dof_pos = torch.zeros((len(env_ids), self.num_actions), dtype=torch.float, 
@@ -170,3 +170,7 @@ class Go2Dreamwaq(LeggedRobotDreamwaq):
             self.simulator.dof_pos[:, hip_joint_indices] - 
             self.simulator.default_dof_pos[:, hip_joint_indices]), dim=-1)
         return dof_pos_error
+
+    def get_failure_idx(self):
+        return self.reset_buf * ~self.time_out_buf
+#updated

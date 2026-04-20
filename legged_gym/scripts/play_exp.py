@@ -115,6 +115,59 @@ def get_args():
 
     return configure_runtime_device(parser.parse_args())
 
+TERRAIN_CONFIGS = {
+    "rough": {
+        "type": "terrain_utils.random_uniform_terrain",
+        "min_height": -0.05,
+        "max_height": 0.05,
+        "step": 0.005,
+        "downsampled_scale": 0.2,
+    },
+    "slope": {
+        "type": "terrain_utils.pyramid_sloped_terrain",
+        "slope": -0.4,
+        "platform_size": 3.0,
+    },
+    "stairs": {
+        "type": "terrain_utils.pyramid_stairs_terrain",
+        "step_width": 0.31,
+        "step_height": 0.1,
+        "platform_size": 3.0,
+    },
+    "discrete": {
+        "type": "terrain_utils.discrete_obstacles_terrain",
+        "max_height": 0.06,
+        "min_size": 1.0,
+        "max_size": 2.0,
+        "num_rects": 20,
+        "platform_size": 3.0,
+    },
+    "wave": {
+        "type": "terrain_utils.wave_terrain",
+        "amplitude": 0.2,
+        "num_waves": 2,
+    },
+    "stepping_stones": {
+        "type": "terrain_utils.stepping_stones_terrain",
+        "stone_size": 1.0,
+        "max_height": 0.1,
+        "stone_distance": 0.3,
+        "platform_size": 3.0,
+    },
+    "gap": {
+        "type": "terrain_utils.gap_terrain",
+        "gap_size": 0.2,
+        "platform_size": 3.0,
+    },
+    "pit": {
+        "type": "terrain_utils.pit_terrain",
+        "depth": 0.2,
+        "platform_size": 3.0,
+    },
+}
+
+test_terrain_name = os.environ.get("TEST_TERRAIN", "rough").lower()
+
 def override_configs(env_cfg, args):
     """Override some environment configuration parameters for testing
 
@@ -131,34 +184,48 @@ def override_configs(env_cfg, args):
     env_cfg.viewer.rendered_envs_idx = list(range(env_cfg.env.num_envs))
     # adjust parameters according to terrain type
     if env_cfg.terrain.mesh_type in ["heightfield", "trimesh"]:
-        env_cfg.terrain.num_rows = 2
-        env_cfg.terrain.num_cols = 2
+        env_cfg.terrain.num_rows = 4
+        env_cfg.terrain.num_cols = 1
         env_cfg.terrain.border_size = 5.0
         env_cfg.terrain.curriculum = False
         env_cfg.terrain.selected   = True
         
+        #env_cfg.terrain.terrain_kwargs = TERRAIN_CONFIGS[test_terrain_name]
+
+        env_cfg.terrain.terrain_kwargs = []
+
         # random uniform terrain
-        env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.random_uniform_terrain", 
+        env_cfg.terrain.terrain_kwargs.append({"type": "terrain_utils.random_uniform_terrain", 
                                           "min_height" : -0.05, "max_height": 0.05, 
-                                          "step":0.005, "downsampled_scale" : 0.2}
+                                          "step":0.005, "downsampled_scale" : 0.2})
         # # slope
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_sloped_terrain",
-        #                                   "slope": -0.4, "platform_size": 3.0}
+        env_cfg.terrain.terrain_kwargs.append({"type": "terrain_utils.pyramid_sloped_terrain",
+                                           "slope": -0.4, "platform_size": 3.0})
         # stairs
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.pyramid_stairs_terrain",
-        #                                 "step_width": 0.31, "step_height": -0.1, "platform_size": 3.0}
+        env_cfg.terrain.terrain_kwargs.append({"type": "terrain_utils.pyramid_stairs_terrain",
+                                         "step_width": 0.31, "step_height": 0.1, "platform_size": 3.0})
+
+        #env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
+        #                                   "max_height": 0.06,
+        #                                   "min_size": 1.0,
+        #                                   "max_size": 2.0,
+        #                                   "num_rects": 20,
+        #                                   "platform_size": 3.0}
+
+        env_cfg.terrain.num_sub_terrains = len(env_cfg.terrain.terrain_kwargs)
+        
         # # discrete obstacles
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
+        #env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.discrete_obstacles_terrain",
         #                                   "max_height": 0.06,
         #                                   "min_size": 1.0,
         #                                   "max_size": 2.0,
         #                                   "num_rects": 20,
         #                                   "platform_size": 3.0}
         # wave terrain
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.wave_terrain", 
+        #env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.wave_terrain", 
         #                                   "amplitude": 0.2, "num_waves": 2}
         # stepping stones
-        # env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.stepping_stones_terrain",
+        #env_cfg.terrain.terrain_kwargs = {"type": "terrain_utils.stepping_stones_terrain",
         #                                   "stone_size": 1.0, "max_height": 0.1,
         #                                   "stone_distance": 0.3, "platform_size": 3.0}
         # gap terrain
@@ -199,9 +266,9 @@ def override_configs(env_cfg, args):
     # env_cfg.env.debug = False
     # env_cfg.env.debug_draw_terrain_height_points = False
 
-    if args.record_frames or args.follow_robot:
-        print("Adding Camera!")
-        env_cfg.viewer.add_camera = True  # use a extra camera for moving
+    #if args.record_frames or args.follow_robot:
+    #    print("Adding Camera!")
+    #    env_cfg.viewer.add_camera = True  # use a extra camera for moving
 
     
 
@@ -220,7 +287,7 @@ def print_debug_info(env, robot_index):
     # print(f"ankle pitch: {env.simulator.dof_pos[robot_index, [3,7]].cpu().numpy()}")
     pass
 
-def interaction_loop(train_cfg, env, policy, args):
+def interaction_loop(train_cfg, env, policy, args, new=""):
     """Run interaction loop between environment and policy
 
     Args:
@@ -235,7 +302,16 @@ def interaction_loop(train_cfg, env, policy, args):
     stop_rew_log = env.max_episode_length + 1 # number of steps before print average episode rewards
 
     # logger = ExpLogger(train_cfg.runner.exp_data_path)
-    exp_log_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'exp_logs', train_cfg.runner.experiment_name, train_cfg.runner.load_run)
+
+    if "lora" in train_cfg.runner.experiment_name.lower():
+        folder = "go2_lora_seq_terrain_tests"
+    else:
+        folder = "go2_fft_seq_terrain_tests"
+    if new:
+        exp_log_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'exp_logs', folder, f"{train_cfg.runner.experiment_name}_{new}.csv")
+    else:
+        exp_log_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'exp_logs', folder, f"{train_cfg.runner.experiment_name}.csv")
+
     logger = ExpLogger(exp_log_root, ref_key='q_actual', length_limit=100)
     
     # Get initial observations according to task type
@@ -264,7 +340,7 @@ def interaction_loop(train_cfg, env, policy, args):
         env.simulator._floating_camera.start_recording()
 
     # interaction loop
-    for i in range(int(10.00*env.max_episode_length)):
+    for i in range(int(4.00*env.max_episode_length)):
 
         # env.commands[:, 0] = 0.5
         # env.commands[:, 1] = 0
@@ -279,12 +355,12 @@ def interaction_loop(train_cfg, env, policy, args):
         
         # set the viewer camera to follow the first environment by default
         # TODO - fix recording/general camera follow conflict
-        if args.follow_robot:
-            pos = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.pos, dtype=np.float32)
-            lookat = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.lookat, dtype=np.float32)
-            # env.set_viewer_camera(pos, lookat)
-            env.set_camera(pos, lookat)
-            env.simulator._floating_camera.render()
+        #if args.follow_robot:
+        #    pos = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.pos, dtype=np.float32)
+        #    lookat = env.simulator.base_pos[robot_index].cpu().numpy() + np.array(env.cfg.viewer.lookat, dtype=np.float32)
+        #    # env.set_viewer_camera(pos, lookat)
+        #    env.set_camera(pos, lookat)
+        #    env.simulator._floating_camera.render()
         
         # Step the environment according to task type
         if "ts" in task_name or "cat" in task_name:
@@ -398,6 +474,7 @@ def play(args):
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     # load policy
     train_cfg.runner.resume = True
+
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
     policy = ppo_runner.get_inference_policy(device=env.device)
     
@@ -415,8 +492,8 @@ def play(args):
     path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 
                             train_cfg.runner.load_run, 'exported')
     # export_policy(ppo_runner, path, args, env_cfg, train_cfg)
-
-    interaction_loop(train_cfg, env, policy, args)
+    
+    interaction_loop(train_cfg, env, policy, args, test_terrain_name)
 
     if args.record_frames:
         try:

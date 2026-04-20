@@ -28,6 +28,9 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
+from itertools import cycle
+from collections.abc import Iterable
+
 import numpy as np
 import trimesh
 
@@ -101,19 +104,37 @@ class Terrain:
                 terrain = self.make_terrain(choice, difficulty)
                 self.add_terrain_to_map(terrain, i, j)
 
+
+    
     def selected_terrain(self):
-        terrain_type = self.cfg.terrain_kwargs.pop('type')
+        
+
+        def is_iterable_not_dict(obj):
+            return isinstance(obj, Iterable) and not isinstance(obj, dict)
+
+        if not is_iterable_not_dict(self.cfg.terrain_kwargs):
+            self.cfg.terrain_kwargs = [self.cfg.terrain_kwargs]
+        
+        terrain_kwargs_list = self.cfg.terrain_kwargs
+
+        terrain_cycle = cycle(terrain_kwargs_list)
+
         for k in range(self.cfg.num_sub_terrains):
-            # Env coordinates in the world
             (i, j) = np.unravel_index(k, (self.cfg.num_rows, self.cfg.num_cols))
 
-            terrain = terrain_utils.SubTerrain("terrain",
-                              width=self.width_per_env_pixels,
-                              length=self.width_per_env_pixels,
-                              vertical_scale=self.cfg.vertical_scale,
-                              horizontal_scale=self.cfg.horizontal_scale)
-                
-            eval(terrain_type)(terrain, **self.cfg.terrain_kwargs, terrain_type=self.type)
+            terrain = terrain_utils.SubTerrain(
+                "terrain",
+                width=self.width_per_env_pixels,
+                length=self.width_per_env_pixels,
+                vertical_scale=self.cfg.vertical_scale,
+                horizontal_scale=self.cfg.horizontal_scale
+            )
+
+            kwargs = next(terrain_cycle).copy()  # avoid mutating original
+            terrain_type = kwargs.pop('type')
+
+            eval(terrain_type)(terrain, **kwargs, terrain_type=self.type)
+
             self.add_terrain_to_map(terrain, i, j)
     
     def make_terrain(self, choice, difficulty):
