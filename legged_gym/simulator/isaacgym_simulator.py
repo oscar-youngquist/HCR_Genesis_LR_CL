@@ -13,8 +13,28 @@ if SIMULATOR == "isaacgym":
     import trimesh
     from legged_gym.warp.warp_cam import WarpCam
 
+def draw_debug_sphere(gym, viewer, pos, env, quat=None, radius=0.05, color=(1.0, 0.0, 0.0), arrow_length=0.3):
+    # sphere
+    sphere_geom = gymutil.WireframeSphereGeometry(radius, 16, 16, None, color=color)
+    sphere_pose = gymapi.Transform(gymapi.Vec3(pos[0], pos[1], pos[2]), r=None)
+    gymutil.draw_lines(sphere_geom, gym, viewer, env, sphere_pose)
+    
+    # arrow (only if quat provided)
+    if quat is not None:
+        # rotate forward vector [1,0,0] by quat to get world direction
+        q0, q1, q2, q3 = quat[0], quat[1], quat[2], quat[3]
+        tip_x = pos[0] + arrow_length * (1 - 2*(q1**2 + q2**2))
+        tip_y = pos[1] + arrow_length * 2*(q0*q1 + q2*q3)
+        tip_z = pos[2] + arrow_length * 2*(q0*q2 - q1*q3)
+        
+        verts  = [pos[0], pos[1], pos[2], tip_x, tip_y, tip_z]
+        colors = [color[0], color[1], color[2], color[0], color[1], color[2]]
+        gym.add_lines(viewer, env, 1, verts, colors)
+
 """ ********** Isaac Gym Simulator ********** """
 class IsaacGymSimulator(Simulator):
+
+    
     def __init__(self, cfg, sim_params: dict, sim_device: str = "cuda:0", headless: bool = False):
         self._gym = gymapi.acquire_gym()
         # Convert dict sim_params to gymapi.SimParams
@@ -35,7 +55,7 @@ class IsaacGymSimulator(Simulator):
             self._create_warp_tensors()
             self.sensor = WarpCam(self.warp_tensor_dict, self._num_envs, self._cfg.sensor, self.mesh_ids, self._device)
             pixels = self.sensor.update()
-            self._depth_images[:,0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
+            self.depth_images[:,0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
 
     #----- Public methods -----#
     def step(self, actions):
@@ -86,6 +106,11 @@ class IsaacGymSimulator(Simulator):
             sensor_pos = self._base_pos + quat_apply(self._base_quat, self.sensor_offset_pos)
             self._sensor_pos_tensor[:,:] = sensor_pos[:,:]
             self._sensor_quat_tensor[:,:] = sensor_quat[:,:]
+        # in post_physics_step, print everything to cross-reference
+        base_rigid = self._rigid_body_states[0, self._base_link_index, 0:3]
+        base_root  = self._root_states[0, 0:3]
+        cam_transform = self._gym.get_viewer_camera_transform(self._viewer, None)
+        pos = self._rigid_body_states[0, self._base_link_index, 0:3].cpu().numpy()
     
     def reset_idx(self, env_ids):
         # rigid body props and joint props in IsaacGym can not be modified on the fly
@@ -104,6 +129,20 @@ class IsaacGymSimulator(Simulator):
             self._base_quat[env_ids], self._global_gravity[env_ids])
         self._base_lin_vel = quat_rotate_inverse(self._base_quat, self._root_states[:, 7:10])
         self._base_ang_vel = quat_rotate_inverse(self._base_quat, self._root_states[:, 10:13])
+
+        if hasattr(self._cfg.sensor.depth_camera_config, "pos_std"):
+            self.sensor_offset_pos[env_ids] = torch.normal(
+                self.pos_offset_tensor.view(1, 3).expand(len(env_ids), -1),
+                self.pos_std_tensor.view(1, 3).expand(len(env_ids), -1),
+            )
+        if hasattr(self._cfg.sensor.depth_camera_config, "euler_std"):
+            rpy_mean = self.rpy_offset_tensor.view(1, 3).expand(len(env_ids), -1)
+            euler_std = self.rpy_std_tensor.view(1, 3).expand(len(env_ids), -1)
+            sampled_rpy = torch.normal(rpy_mean, euler_std)
+            self.sensor_offset_quat[env_ids] = quat_from_euler_xyz(
+                sampled_rpy[:, 0], sampled_rpy[:, 1], sampled_rpy[:, 2]
+            )
+        
         
     def reset_dofs(self, env_ids, dof_pos, dof_vel):
         self._dof_pos[env_ids] = dof_pos[:, self._dof_indices]
@@ -130,6 +169,8 @@ class IsaacGymSimulator(Simulator):
                                                       len(env_ids_int32))
     
     def update_sensors(self):
+        if self._cfg.sensor.add_depth:
+            self._update_depth_images()
         return super().update_sensors()
     
     def update_terrain_curriculum(self, env_ids, move_up, move_down):
@@ -163,6 +204,8 @@ class IsaacGymSimulator(Simulator):
             self._draw_height_points_around_feet()
         if self._cfg.env.debug_draw_terrain_height_points:
             self._draw_terrain_height_points()
+
+        self._draw_debug_sensor()
     
     def set_viewer_camera(self, eye: np.ndarray, target: np.ndarray):
         cam_pos = gymapi.Vec3(eye[0], eye[1], eye[2])
@@ -207,6 +250,14 @@ class IsaacGymSimulator(Simulator):
             self._terrain = Terrain(self._cfg.terrain)
         if mesh_type=='plane':
             self._create_ground_plane()
+            env_width = self._cfg.terrain.terrain_length
+            env_length = self._cfg.terrain.terrain_width
+            border = int(self._cfg.terrain.border_size/self._cfg.terrain.horizontal_scale)
+            width_per_env_pixels = int(env_width / self._cfg.terrain.horizontal_scale)
+            length_per_env_pixels = int(env_length / self._cfg.terrain.horizontal_scale)
+            tot_cols = int(self._cfg.terrain.num_cols * width_per_env_pixels) + 2 * border
+            tot_rows = int(self._cfg.terrain.num_rows * length_per_env_pixels) + 2 * border
+            self._height_samples = torch.zeros((tot_rows, tot_cols), dtype=torch.int16, device=self._device, requires_grad=False)
         elif mesh_type=='heightfield':
             self._create_heightfield()
         elif mesh_type=='trimesh':
@@ -237,6 +288,7 @@ class IsaacGymSimulator(Simulator):
                 2.3 create actor with these properties and add them to the env
              3. Store indices of different bodies of the robot
         """
+        
         asset_path = self._cfg.asset.file.format(LEGGED_GYM_ROOT_DIR=LEGGED_GYM_ROOT_DIR)
         asset_root = os.path.dirname(asset_path)
         asset_file = os.path.basename(asset_path)
@@ -347,6 +399,8 @@ class IsaacGymSimulator(Simulator):
                 self._viewer, gymapi.KEY_ESCAPE, "QUIT")
             self._gym.subscribe_viewer_keyboard_event(
                 self._viewer, gymapi.KEY_V, "toggle_viewer_sync")
+
+        
     
     def _init_buffers(self):
         """ Initialize torch tensors which will contain simulation states and processed quantities
@@ -421,7 +475,7 @@ class IsaacGymSimulator(Simulator):
         if self._cfg.sensor.add_depth:
             pointcloud_dims = 3 * (self._cfg.sensor.depth_camera_config.return_pointcloud == True)
             if pointcloud_dims > 0:
-                self._depth_images = torch.zeros(
+                self.depth_images = torch.zeros(
                     (self._num_envs, 
                      self._cfg.sensor.depth_camera_config.num_history,
                      self._cfg.sensor.depth_camera_config.resolution[1], 
@@ -431,7 +485,7 @@ class IsaacGymSimulator(Simulator):
                     dtype=torch.float
                 )
             else:
-                self._depth_images = torch.zeros(
+                self.depth_images = torch.zeros(
                     (self._num_envs, 
                     self._cfg.sensor.depth_camera_config.num_history,
                     self._cfg.sensor.depth_camera_config.resolution[1], 
@@ -442,6 +496,13 @@ class IsaacGymSimulator(Simulator):
         
         self._init_height_points()
         self._measured_heights = torch.zeros(self._num_envs, self._num_height_points, device=self._device, requires_grad=False)
+        #pos = self._rigid_body_states[0, self._base_link_index, 0:3].cpu().numpy()
+        #self._gym.viewer_camera_look_at(
+        #            self._viewer, 
+        #            None,  # None = world space
+        #            gymapi.Vec3(pos[0] - 2.0, pos[1] - 2.0, pos[2] + 1.5),  # camera pos behind robot
+        #            gymapi.Vec3(pos[0], pos[1], pos[2])  # look at robot
+        #        )
     
     def _init_height_points(self):
         y = torch.tensor(self._cfg.terrain.measured_points_y,
@@ -666,6 +727,8 @@ class IsaacGymSimulator(Simulator):
         self.wp_meshes =  wp.Mesh(points=vertex_vec3_array,indices=faces_wp_int32_array)
         
         self.mesh_ids = self.mesh_ids_array = wp.array([self.wp_meshes.id], dtype=wp.uint64)
+
+    
     
     def _create_warp_tensors(self):
         self.warp_tensor_dict={}
@@ -686,17 +749,40 @@ class IsaacGymSimulator(Simulator):
         self._sensor_pos_tensor = torch.zeros_like(self._root_states[:, 0:3])
         self._sensor_quat_tensor = torch.zeros_like(self._root_states[:, 3:7])
         
-        # sensor pose
         pos_offset = [self._cfg.sensor.depth_camera_config.pos[0], 
                       self._cfg.sensor.depth_camera_config.pos[1], 
                       self._cfg.sensor.depth_camera_config.pos[2]]
+
+        if hasattr(self._cfg.sensor.depth_camera_config, "pos_std"):
+            self.pos_offset_tensor = torch.tensor(pos_offset, device=self._device).float()
+            self.pos_std_tensor = torch.tensor(self._cfg.sensor.depth_camera_config.pos_std, device=self._device).float()
+            print(self.pos_offset_tensor.view(1, 3).shape)
+            self.sensor_offset_pos = torch.normal(
+                self.pos_offset_tensor.view(1, 3).expand(self._num_envs, -1),
+                self.pos_std_tensor.view(1, 3).expand(self._num_envs, -1),
+            )
+        else:
+            self.sensor_offset_pos = torch.tensor(pos_offset, device=self._device).repeat((self._num_envs, 1))
+
         rpy_offset = [self._cfg.sensor.depth_camera_config.euler[0], 
                       self._cfg.sensor.depth_camera_config.euler[1], 
                       self._cfg.sensor.depth_camera_config.euler[2]]
-        self.sensor_offset_pos = torch.tensor(pos_offset, device=self._device).repeat((self._num_envs, 1))
-        rpy_offset = torch.tensor(rpy_offset, device=self._device)
 
-        self.sensor_offset_quat = quat_from_euler_xyz(rpy_offset[0], rpy_offset[1], rpy_offset[2]).repeat((self._num_envs, 1))
+        if hasattr(self._cfg.sensor.depth_camera_config, "euler_std"):
+            self.rpy_offset_tensor = torch.tensor(rpy_offset,device=self._device).float()
+            self.rpy_std_tensor = torch.tensor(self._cfg.sensor.depth_camera_config.euler_std, device=self._device).float()
+            sampled_rpy = torch.normal(
+                self.rpy_offset_tensor.view(1, 3).expand(self._num_envs, -1),
+                self.rpy_std_tensor.view(1, 3).expand(self._num_envs, -1),
+            )
+            self.sensor_offset_quat = quat_from_euler_xyz(
+                sampled_rpy[:, 0], sampled_rpy[:, 1], sampled_rpy[:, 2]
+            )
+        else:
+            rpy_offset = torch.tensor(rpy_offset, device=self._device)
+            self.sensor_offset_quat = quat_from_euler_xyz(rpy_offset[0], rpy_offset[1], rpy_offset[2]).repeat((self._num_envs, 1))
+
+        
         
         self.warp_tensor_dict["depth_image_tensor"] = self.depth_image_tensor_warp
         self.warp_tensor_dict['device'] = self._device
@@ -711,14 +797,14 @@ class IsaacGymSimulator(Simulator):
         """
         if self._cfg.sensor.use_warp:
             pixels = self.sensor.update()
-            self._depth_images[:, 0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
-            if self._cfg.sensor.depth_camera_config.calculate_depth:
-                near_clip = self._cfg.sensor.depth_camera_config.near_clip
-                far_clip = self._cfg.sensor.depth_camera_config.far_clip
-                # clip the depth images to be within near and far clip
-                self._depth_images = torch.clip(self._depth_images, near_clip, far_clip)
-                # normalize the depth images to be within 0-1
-                self._depth_images = (self._depth_images - near_clip) / (far_clip - near_clip) - 0.5
+            self.depth_images[:, 0] = pixels[:,0] # pixels: [num_envs, num_sensors, H, W]
+            #if self._cfg.sensor.depth_camera_config.calculate_depth:
+            #    near_clip = self._cfg.sensor.depth_camera_config.near_clip
+            #    far_clip = self._cfg.sensor.depth_camera_config.far_clip
+            #    # clip the depth images to be within near and far clip
+            #    self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
+            #    # normalize the depth images to be within 0-1
+            #    self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip)
         else:
             raise NotImplementedError("Depth image update not implemented for non-warp simulator")
             
@@ -738,6 +824,16 @@ class IsaacGymSimulator(Simulator):
                 sphere_pose = gymapi.Transform(gymapi.Vec3(x, y, z), r=None)
                 gymutil.draw_lines(sphere_geom, self._gym, self._viewer, self._envs[i], sphere_pose)
     
+
+    def _draw_debug_sensor(self):
+        if not self._viewer:
+            return
+        sphere_geom = gymutil.WireframeSphereGeometry(0.15, 8, 8, None, color=(1, 0, 0))
+        for i in range(self._num_envs):
+            pos = self._root_states[i, :3].cpu().numpy()
+            quat = self._root_states[i, 3:7].cpu().numpy()
+            sphere_pose = quat_apply_yaw(quat, pos)
+            gymutil.draw_lines(sphere_geom, self._gym, self._viewer, self._envs[i], sphere_pose)
     
     def _draw_terrain_height_points(self):
         """ Draws height measurement points in the terrain for debugging
@@ -846,7 +942,7 @@ class IsaacGymSimulator(Simulator):
             gymutil.draw_lines(box_geom, self._gym, self._viewer, self._envs[i], box_pose)
     
     def _draw_debug_depth_images(self):
-        depth = self._depth_images[0, 0, :, :]  # get depth image of first env, first step
+        depth = self.depth_images[0, 0, :, :]  # get depth image of first env, first step
         # print(f"depth values: {depth}")
         if self._cfg.sensor.depth_camera_config.calculate_depth:
             far_clip = self._cfg.sensor.depth_camera_config.far_clip
@@ -861,7 +957,7 @@ class IsaacGymSimulator(Simulator):
             print(f"depth pixel values: {pixel_values}")
             # self.frame_count += 1
         elif self._cfg.sensor.depth_camera_config.return_pointcloud:
-            pointcloud = self._depth_images[0, 0, :, :, :]  # get pointcloud of first env, first step
+            pointcloud = self.depth_images[0, 0, :, :, :]  # get pointcloud of first env, first step
             pointcloud_np = pointcloud.cpu().numpy().astype(np.float32)
             self._gym.clear_lines(self._viewer)
             self._gym.refresh_rigid_body_state_tensor(self._sim)
@@ -896,6 +992,22 @@ class IsaacGymSimulator(Simulator):
             # step graphics
             if self._enable_viewer_sync:
                 self._gym.step_graphics(self._sim)
+
+                if self._viewer:
+                    self._gym.clear_lines(self._viewer)
+                    #for i, env in enumerate(self._envs):
+                    #    pos = self._sensor_pos_tensor[i,:].cpu().numpy()
+                    #    quat = self._sensor_quat_tensor[i,:].cpu().numpy()
+                    #    env_origin = self._env_origins[i].cpu().numpy()
+                    #    draw_debug_sphere(self._gym, self._viewer, pos, env, quat=quat, radius=0.01, color=(1.0, 0.0, 0.0))
+                    #    #draw_debug_sphere(self._gym, self._viewer, [0.0, 0.0, 0.5], env, quat=quat, radius=0.3, color=(1.0, 0.0, 0.0))  # local [0,0,1]
+                    #    #draw_debug_sphere(self._gym, self._viewer, [1.0, 0.0, 0.5], env, quat=quat, radius=0.3, color=(0.0, 1.0, 0.0))  # local [1,0,1]
+                    #    #draw_debug_sphere(self._gym, self._viewer, [0.0, 1.0, 0.5], env, quat=quat, radius=0.3, color=(0.0, 0.0, 1.0))  # local [0,1,1]    
+                    #    #draw_debug_sphere(self._gym, self._viewer, [env_origin[0], env_origin[1], 0.5], env, quat=quat, radius=0.3, color=(1.0, 0.0, 0.0))
+                    #    #draw_debug_sphere(self._gym, self._viewer, [env_origin[0]+1, env_origin[1], 0.5], env, quat=quat, radius=0.3, color=(0.0, 1.0, 0.0))
+                    #    #draw_debug_sphere(self._gym, self._viewer, [env_origin[0], env_origin[1]+1, 0.5], env, quat=quat, radius=0.3, color=(0.0, 0.0, 1.0))
+                    #    #print(f"env {i} origin: {env_origin}")
+
                 self._gym.draw_viewer(self._viewer, self._sim, True)
                 if sync_frame_time:
                     self._gym.sync_frame_time(self._sim)

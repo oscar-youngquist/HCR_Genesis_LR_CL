@@ -107,10 +107,15 @@ task_registry.register( "go2_dreamwaq_flat", Go2DreamwaqFlat, Go2DreamwaqFlatCfg
 task_registry.register( "go2_dreamwaq_lora", Go2DreamwaqLora, Go2DreamwaqLoraCfg(), Go2DreamwaqLoraCfgPPO())
 task_registry.register( "go2_dreamwaq_lora_env", Go2DreamwaqLoraEnv, Go2DreamwaqLoraEnvCfg(), Go2DreamwaqLoraEnvCfgPPO())
 task_registry.register( "go2_cat", Go2CaT, Go2CaTCfg(), Go2CaTCfgPPO())
-# task_registry.register( "go2_ts_depth", Go2TSDepth, Go2TSDepthCfg(), Go2TSDepthCfgPPO())
+task_registry.register( "go2_ts_depth", Go2TSDepth, Go2TSDepthCfg(), Go2TSDepthCfgPPO())
 task_registry.register( "go2_nav", GO2Nav, GO2NavCfg(), GO2NavCfgPPO())
 task_registry.register( "tron1_pf", TRON1PF, TRON1PFCfg(), TRON1PFCfgPPO())
 task_registry.register( "tron1_pf_ee", TRON1PF_EE, TRON1PF_EECfg(), TRON1PF_EECfgPPO())
 task_registry.register( "tron1_sf", TRON1SF, TRON1SFCfg(), TRON1SFCfgPPO())
 # task_registry.register( "go2_sysid", GO2SysID, GO2SysIDCfg(), GO2CfgPPO())
 # task_registry.register( "bipedal_walker", BipedalWalker, BipedalWalkerCfg(), BipedalWalkerCfgPPO())
+
+from legged_gym.envs.go2.go2_depth_waq.go2_depth_waq import Go2Depth
+from legged_gym.envs.go2.go2_depth_waq.go2_depth_waq_config import Go2DepthCfg, Go2DepthCfgPPO
+task_registry.register( "go2_depth_waq", Go2Depth, Go2DepthCfg(), Go2DepthCfgPPO())
+

@@ -68,8 +68,12 @@ class LeggedRobot(BaseTask):
         self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
-        if self.cfg.sensor.add_depth:
-            self.simulator.update_depth_images()
+        if self.common_step_counter % 5 == 1:
+            self.simulator.update_sensors()
+            self.sensors_updated = True
+        else:
+            self.sensors_updated = False
+        #self.simulator._draw_debug_depth_images()
         self.compute_observations()  # in some cases a simulation step might be required to refresh some obs (for example body positions)
         
         if self.debug:
@@ -244,7 +248,7 @@ class LeggedRobot(BaseTask):
             actions = self.action_queue[torch.arange(
                 self.num_envs), self.action_delay].clone()
         # during training, the camera follows the first environment
-        if (not self.debug) and self.headless:
+        if hasattr(self.simulator, "viewer") and (not self.debug) and self.headless:
             pos = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.pos)
             lookat = self.simulator.base_pos[0].cpu().numpy() + np.array(self.cfg.viewer.lookat)
             self.set_viewer_camera(pos, lookat)

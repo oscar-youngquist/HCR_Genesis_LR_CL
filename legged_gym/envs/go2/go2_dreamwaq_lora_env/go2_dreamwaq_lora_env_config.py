@@ -106,16 +106,16 @@ class Go2DreamwaqLoraCfgPPO( LeggedRobotDreamwaqCfgPPO ):
     runner_class_name = "DreamWaQLoRaRunner" 
     class policy( LeggedRobotDreamwaqCfgPPO.policy ):
         base_model="/home/pablo/Documents/HCR_Genesis_LR_CL/logs/go2_flat/Apr15_20-07-19_dreamwaq_flat_genesis/model_3000.pt"
-        critic_hidden_dims: list[int] = [1024, 256, 128]
-        encoder_hidden_dims: list[int] = [256, 128]
-        decoder_hidden_dims: list[int] = [256, 128]
-        actor_ranks: list[int] = [lora_rank] * 4
-        encoder_ranks: list[int] = [lora_rank] * 3
-        decoder_ranks: list[int] = [lora_rank] *3
-        latent_mu_rank: int = lora_rank
-        vel_mu_rank: int = lora_rank
-        latent_var_ranks: list[int] = [lora_rank] #can be in int too but list for consistency
-        vel_var_ranks: list[int] = [lora_rank] #can be in int too but list for consistency
+        critic_hidden_dims = [1024, 256, 128]
+        encoder_hidden_dims = [256, 128]
+        decoder_hidden_dims = [256, 128]
+        actor_ranks = [lora_rank] * 4
+        encoder_ranks = [lora_rank] * 3
+        decoder_ranks = [lora_rank] *3
+        latent_mu_rank = lora_rank
+        vel_mu_rank = lora_rank
+        latent_var_ranks = [lora_rank] #can be in int too but list for consistency
+        vel_var_ranks = [lora_rank] #can be in int too but list for consistency
     class algorithm( LeggedRobotDreamwaqCfgPPO.algorithm ):
         encoder_lr = 2.e-4
         num_encoder_epochs = 1

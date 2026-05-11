@@ -320,7 +320,7 @@ def interaction_loop(train_cfg, env, policy, args, new=""):
         obs_buf, privileged_obs_buf, obs_history, critic_obs = env.get_observations()
     elif "ee" in task_name:  # explicit estimator
         estimator_features, _, _ = env.get_observations()
-    elif "dreamwaq" in task_name:  # dreamwaq
+    elif "waq" in task_name:  # dreamwaq
         obs_buf, privileged_obs_buf, obs_history, explicit_labels, next_states = env.get_observations()
     elif "pact" in task_name:
         obs_buf, obs_history, privileged_obs_buf, explicit_labels = env.get_observations()

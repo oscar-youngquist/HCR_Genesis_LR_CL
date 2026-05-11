@@ -191,7 +191,7 @@ class LoRALinear(nn.Linear, LoRALayer):
                 f"of torch.nn.Linear class, but {str(type(module))} is given."
             )
     
-def _from_sequential(model: nn.Sequential, ranks: Iterator[int] = None, targets: tuple[int] = None):
+def _from_sequential(model: nn.Sequential, ranks = None, targets = None):
     modules = []
     check = targets is None
     if ranks is None:
@@ -213,7 +213,7 @@ def _from_sequential(model: nn.Sequential, ranks: Iterator[int] = None, targets:
     lora_model = nn.Sequential(*modules)
     return lora_model
 
-def _merge_seq(model: nn.Sequential | LoRALinear, merge: bool = True):
+def _merge_seq(model, merge: bool = True):
     if isinstance(model, LoRALinear):
         model.merge(merge)
         return

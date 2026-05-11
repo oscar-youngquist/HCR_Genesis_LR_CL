@@ -49,14 +49,14 @@ class ActorCriticDreamWaQLoRA(ActorCriticDreamWaQ):
     def __init__(
         self,
         *args,
-        base_model: str = None,
-        actor_ranks: list[int] = [4, 4, 4, 4],
-        encoder_ranks: list[int] = [4, 4, 4],
-        decoder_ranks: list[int] = [4, 4, 4],
-        latent_mu_rank: int = 4,
-        vel_mu_rank: int = 4,
-        latent_var_ranks: list[int] = [4],
-        vel_var_ranks: list[int] = [4],
+        base_model= None,
+        actor_ranks = [4, 4, 4, 4],
+        encoder_ranks = [4, 4, 4],
+        decoder_ranks = [4, 4, 4],
+        latent_mu_rank= 4,
+        vel_mu_rank = 4,
+        latent_var_ranks = [4],
+        vel_var_ranks = [4],
         **kwargs
     ):
         super().__init__(*args, **kwargs)

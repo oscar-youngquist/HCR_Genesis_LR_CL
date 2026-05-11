@@ -1,7 +1,9 @@
+import warnings
+warnings.filterwarnings("ignore", module="pydantic.*")
+
 from legged_gym import *
 from legged_gym.simulator.simulator import Simulator
 from PIL import Image as im
-import cv2 as cv
 import torch
 import numpy as np
 import os
@@ -303,6 +305,7 @@ class GenesisSimulator(Simulator):
 
     def _create_envs(self):
         # Create envs
+        print(f"num of envs: {self._num_envs}")
         asset_path = self._cfg.asset.file.format(
             LEGGED_GYM_ROOT_DIR=LEGGED_GYM_ROOT_DIR)
         asset_root = os.path.dirname(asset_path)
@@ -455,7 +458,7 @@ class GenesisSimulator(Simulator):
         if self._cfg.sensor.add_depth:
             self.depth_images = torch.zeros(
                 (self._num_envs, 
-                 self._cfg.sensor.depth_camera_config.num_history,
+                 #self._cfg.sensor.depth_camera_config.num_history,
                  self._cfg.sensor.depth_camera_config.resolution[1], 
                  self._cfg.sensor.depth_camera_config.resolution[0]), 
                 device=self._device, 
@@ -750,12 +753,12 @@ class GenesisSimulator(Simulator):
         """ Renders the depth camera and retrieves the depth images
         """
         self.depth_images[:] = self.depth_camera.read_image()[:]
-        near_clip = self._cfg.sensor.depth_camera_config.near_clip
-        far_clip = self._cfg.sensor.depth_camera_config.far_clip
+        #near_clip = self._cfg.sensor.depth_camera_config.near_clip
+        #far_clip = self._cfg.sensor.depth_camera_config.far_clip
         # clip the depth images to be within near and far clip
-        self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
+        #self.depth_images = torch.clip(self.depth_images, near_clip, far_clip)
         # normalize the depth images to be within 0-1
-        self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip) - 0.5
+        #self.depth_images = (self.depth_images - near_clip) / (far_clip - near_clip) - 0.5
     
     def _draw_debug_depth_images(self):
         if self._num_envs == 1:
@@ -820,7 +823,7 @@ class GenesisSimulator(Simulator):
             pos_offset=self._cfg.sensor.depth_camera_config.pos,
             euler_offset=self._cfg.sensor.depth_camera_config.euler,
             return_world_frame=False,
-            draw_debug=self._debug,
+            draw_debug=False, #self._debug,
             min_range=self._cfg.sensor.depth_camera_config.near_plane,
             max_range=self._cfg.sensor.depth_camera_config.far_plane,
         )

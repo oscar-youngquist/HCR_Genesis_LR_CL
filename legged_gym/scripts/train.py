@@ -6,6 +6,7 @@ from legged_gym.utils import get_args, task_registry
 import shutil
 
 def train(args):
+    
     if SIMULATOR == "genesis":
         gs.init(
             backend=gs.cpu if args.cpu else gs.gpu,

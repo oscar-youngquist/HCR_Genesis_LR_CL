@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Tuple
 import torch
 import numpy as np
+import re
 
 from rsl_rl.env import VecEnv
 from rsl_rl.runners import OnPolicyRunner
@@ -132,6 +133,7 @@ class TaskRegistry():
                 resume_path = get_load_path(log_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
                 print(f"Loading model from: {resume_path}")
                 runner.load(resume_path)
+                runner.current_learning_iteration = int(re.search(r'(\d+)(?=\.pt$)', resume_path).group(1))
         elif hasattr(train_cfg.runner, "base_model") and train_cfg.runner.base_model:
             finetuing_path = os.path.normpath(
                 os.path.abspath(
@@ -140,6 +142,7 @@ class TaskRegistry():
             )
             print(f"Loading base model from: {finetuing_path}")
             runner.load(finetuing_path)
+            #runner.current_learning_iteration = int(re.search(r'(\d+)(?=\.pt$)', finetuing_path).group(1))
         return runner, train_cfg
 
 # make global task registry

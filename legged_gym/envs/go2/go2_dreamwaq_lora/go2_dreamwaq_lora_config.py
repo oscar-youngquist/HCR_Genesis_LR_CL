@@ -74,13 +74,13 @@ class Go2DreamwaqLoraCfgPPO( LeggedRobotDreamwaqCfgPPO ):
         critic_hidden_dims = [1024, 256, 128]
         encoder_hidden_dims = [256, 128]
         decoder_hidden_dims = [256, 128]
-        actor_ranks: list[int] = [8, 8, 8, 8]
-        encoder_ranks: list[int] = [8, 8, 8]
-        decoder_ranks: list[int] = [8, 8, 8]
-        latent_mu_rank: int = 8
-        vel_mu_rank: int = 8
-        latent_var_ranks: list[int] = [8] #can be in int too but list for consistency
-        vel_var_ranks: list[int] = [8] #can be in int too but list for consistency
+        actor_ranks = [8, 8, 8, 8]
+        encoder_ranks = [8, 8, 8]
+        decoder_ranks = [8, 8, 8]
+        latent_mu_rank = 8
+        vel_mu_rank = 8
+        latent_var_ranks = [8] #can be in int too but list for consistency
+        vel_var_ranks = [8] #can be in int too but list for consistency
     class algorithm( LeggedRobotDreamwaqCfgPPO.algorithm ):
         encoder_lr = 2.e-4
         num_encoder_epochs = 1
