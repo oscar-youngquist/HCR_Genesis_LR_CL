@@ -35,7 +35,7 @@ class Go2DepthCfg( LeggedRobotDreamwaqCfg ):
     class env( LeggedRobotDreamwaqCfg.env ):
         num_envs = 256
         num_actions = 12
-        num_observations = 3117 # 45 num_obs
+        num_observations = 45 # 45 num_obs
         frame_stack = 20    # number of frames to stack for obs_history
         num_history_obs = int(num_observations * frame_stack)
         c_frame_stack = 5
@@ -154,6 +154,7 @@ class Go2DepthCfg( LeggedRobotDreamwaqCfg ):
 #             crop_left_right = [int(28/4), int(36/4)]
 
 class Go2DepthCfgPPO( LeggedRobotDreamwaqCfgPPO ):
+    runner_class_name = "DreamWaQDepthRunner"
     class policy( LeggedRobotDreamwaqCfgPPO.policy ):
         critic_hidden_dims = [1024, 256, 128]
         encoder_hidden_dims = [256, 128]
@@ -163,6 +164,8 @@ class Go2DepthCfgPPO( LeggedRobotDreamwaqCfgPPO ):
         num_encoder_epochs = 1
         vae_kld_weight = 2.0
     class runner( LeggedRobotDreamwaqCfgPPO.runner ):
+        policy_class_name = "ActorCriticDreamWaQDepth"
+        algorithm_class_name = "PPO_DreamWaQ_Depth"
         run_name = 'dreamwaq'
         if SIMULATOR == "genesis":
             run_name += "_genesis"

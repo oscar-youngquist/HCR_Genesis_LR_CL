@@ -8,6 +8,7 @@ class RunnerRegistry:
         self.runner_classes[name] = runner_class
     
     def get_runner_class(self, name: str) -> OnPolicyRunner:
+        print("runner class", name)
         return self.runner_classes[name]
 
 runner_registry = RunnerRegistry()

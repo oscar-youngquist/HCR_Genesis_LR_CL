@@ -70,8 +70,9 @@ class Go2Depth(LeggedRobotDreamwaq):
             H = H - t - b
             W = W - l - r
             self.output_resolution = (H, W)
+        self.depth_image_size = self.output_resolution[0] * self.output_resolution[1]
         self.depth_sensor_output = torch.zeros(
-            (self.num_envs, *self.output_resolution),
+            (self.num_envs, 1, *self.output_resolution),
             dtype=torch.float32,
             device=self.device,
         )
@@ -86,7 +87,7 @@ class Go2Depth(LeggedRobotDreamwaq):
         return super()._pre_sim_step(actions)
 
     def compute_observations(self):
-        self.depth_images = self._get_forward_depth_obs()
+        self.depth_sensor_output = self._get_forward_depth_obs()
         # depth = None
         # if self.sensors_updated:
         #     resy, resx = self.output_resolution
@@ -106,7 +107,6 @@ class Go2Depth(LeggedRobotDreamwaq):
             self.obs_scales.dof_pos,  # num_dofs
             self.simulator.dof_vel * self.obs_scales.dof_vel,                         # num_dofs
             self.actions,                                                    # num_actions
-            self.depth_images
         ), dim=-1)
         domain_randomization_info = torch.cat((
                     (self.simulator._friction_values - 
@@ -180,6 +180,18 @@ class Go2Depth(LeggedRobotDreamwaq):
                 self.cfg.rewards.foot_height_offset, -1, 1.),  # 4
         ), dim=-1)
 
+    def step(self, actions):
+        return *super().step(actions), self.depth_sensor_output
+
+    def get_observations(self):
+        return *super().get_observations(), self.depth_sensor_output
+
+    def reset(self):
+        """ Reset all robots"""
+        self.reset_idx(torch.arange(self.num_envs, device=self.device))
+        obs, privileged_obs, obs_history, explicit_labels, next_state, _, _, _, depth_sensor_output = self.step(torch.zeros(
+            self.num_envs, self.num_actions, device=self.device, requires_grad=False))
+        return obs, privileged_obs, obs_history, explicit_labels, next_state, depth_sensor_output
 
     def _post_physics_step_callback(self):
         super()._post_physics_step_callback()
@@ -793,10 +805,10 @@ class Go2Depth(LeggedRobotDreamwaq):
                 self.depth_sensor_obs_buffer[
                     -self.depth_sensor_delayed_frames,
                     self.env_arange,
-                ]
+                ].unsqueeze(1)
             )
             self.depth_sensor_obs_refreshed = True
-        return self.depth_sensor_output.flatten(start_dim= 1)
+        return self.depth_sensor_output
     #if not hasattr(self.cfg.sensor, "forward_camera") or privileged:
     #    return super()._get_forward_depth_obs(privileged).reshape(self.num_envs, -1)
 

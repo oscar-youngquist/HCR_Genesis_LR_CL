@@ -34,6 +34,7 @@ from .ee_runner import EERunner
 from .cts_runner import CTSRunner
 from .dreamwaq_runner import DreamWaQRunner
 from .dreamwaq_runner_lora import DreamWaQLoRaRunner
+from .dreamwaq_depth_runner import DreamWaQDepthRunner
 
 from rsl_rl.utils.runner_registry import runner_registry
 runner_registry.register("OnPolicyRunner", OnPolicyRunner)
@@ -42,3 +43,4 @@ runner_registry.register("EERunner", EERunner)
 runner_registry.register("CTSRunner", CTSRunner)
 runner_registry.register("DreamWaQRunner", DreamWaQRunner)
 runner_registry.register("DreamWaQLoRaRunner", DreamWaQLoRaRunner)
+runner_registry.register("DreamWaQDepthRunner", DreamWaQDepthRunner)

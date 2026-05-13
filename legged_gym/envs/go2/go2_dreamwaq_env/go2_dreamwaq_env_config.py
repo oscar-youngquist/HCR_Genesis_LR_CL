@@ -5,17 +5,32 @@ from legged_gym.envs.base.common_cfgs import Go2RoughCommonCfg
 
 import os
 
-def parse_terrain(env_value):
-    try:
-        return [float(x.strip()) for x in env_value.split(",")]
-    except ValueError:
-        pass
+TERRAIN_KEYS = [
+    "rough",
+    "slope",
+    "stairs",
+    "discrete",
+    "wave",
+    "stepping_stones",
+]
 
-    
+TERRAIN_MAP = {
+    name: [1 if i == idx else 0 for i in range(len(TERRAIN_KEYS))]
+    for idx, name in enumerate(TERRAIN_KEYS)
+}
 
-terrain_configuration = os.environ.get("TERRAIN", "0,0,0.35,0.25,0,0,0")
-terrain_list = parse_terrain(terrain_configuration)
-experiment_extra = terrain_configuration.replace(".", '_').replace(",","__")
+terrain_name = os.environ.get("TERRAIN", "rough").lower()
+finetune = os.environ.get("FINETUNE", "")
+
+
+if terrain_name not in TERRAIN_MAP:
+    raise ValueError(f"Unknown TERRAIN '{terrain_name}'. Valid options: {TERRAIN_KEYS}")
+
+terrain_index = TERRAIN_KEYS.index(terrain_name)
+terrain_list = TERRAIN_MAP[terrain_name]
+
+experiment_extra = f"exp{terrain_index+1}"
+
 
 class Go2DreamwaqCfg( LeggedRobotDreamwaqCfg ):
     class env( LeggedRobotDreamwaqCfg.env ):

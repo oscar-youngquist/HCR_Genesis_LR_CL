@@ -35,3 +35,4 @@ from .actor_critic_ee import ActorCriticEE
 from .actor_critic_cts import ActorCriticCTS
 from .actor_critic_dreamwaq import ActorCriticDreamWaQ
 from .actor_critic_dreamwaq_lora import ActorCriticDreamWaQLoRA
+from .actor_critic_dreamwaq_depth import ActorCriticDreamWaQDepth
